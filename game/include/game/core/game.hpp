@@ -15,7 +15,7 @@ namespace App {
         Game();
         ~Game();
 
-        void onUpdate(float deltaTime) override;
+        void onUpdate(float realDt, float gameplayDt) override;
         void onRender() override;
         void onEvent(const SDL_Event& event) override;
 

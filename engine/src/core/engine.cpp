@@ -1,11 +1,12 @@
 #include <engine/core/engine.hpp>
 #include <engine/core/logger.hpp>
 #include <engine/systems/input_system.hpp>
+#include <engine/debug/debug_overlay.hpp>
 #include <SDL3/SDL.h>
 #include <engine/debug/fps.hpp>
 
 namespace Solace {
-    Engine::Engine() {
+    Engine::Engine() : m_registry(m_bus) {
         Logger::info("Initializing Solace Engine (Clean Core)...");
         m_window = std::make_unique<Window>("Solace", 1280, 720);
         m_post = std::make_unique<PostProcess>();
@@ -18,26 +19,29 @@ namespace Solace {
     }
 
     void Engine::run() {
+
         Logger::info("Entering main game loop...");
         SDL_Event event;
 
-        Uint64 lastCounter = SDL_GetPerformanceCounter();
-        const Uint64 frequency = SDL_GetPerformanceFrequency();
-
         while (m_isRunning) {
-            Uint64 currentCounter = SDL_GetPerformanceCounter();
-            float deltaTime = static_cast<float>(currentCounter - lastCounter) / static_cast<float>(frequency);
-            lastCounter = currentCounter;
 
-            if (deltaTime > 0.1f) deltaTime = 0.1f;
+            m_clock.tick();
 
-            InputSystem::update();
+            m_registry.process_destroy();
+
+            m_bus.processQueue();
+
+            if(!DebugOverlay::isOpen())
+                InputSystem::update();
+            
 
             while (SDL_PollEvent(&event)) {
                 if (event.type == SDL_EVENT_QUIT) m_isRunning = false;
 
                 onEvent(event);
-                InputSystem::handleEvent(event);
+
+                if (!DebugOverlay::isOpen())
+                    InputSystem::handleEvent(event);
 
                 if (event.type == SDL_EVENT_WINDOW_RESIZED) {
                     m_window->updateSize(event.window.data1, event.window.data2);
@@ -50,16 +54,17 @@ namespace Solace {
 
             if (m_window->shouldClose()) m_isRunning = false;
 
-            Fps::update(deltaTime);
-            onUpdate(deltaTime);
+            Fps::update(m_clock.real_dt());
+
+            onUpdate(m_clock.real_dt(),m_clock.gameplay_dt());
 
             m_post->beginScene(m_window->width(), m_window->height());
             onRender();
             m_post->endScene(m_window->width(), m_window->height());
 
-            if (m_uiCallback) {
-                m_uiCallback();
-            }
+            if (m_uiCallback) m_uiCallback();
+
+            m_clock.frame_end();
 
             m_window->swapBuffers();
         }

@@ -102,7 +102,7 @@ namespace App {
         Solace::Logger::info("Graphics settings successfully reloaded!");
     }
 
-    void Game::onUpdate(float deltaTime) {
+    void Game::onUpdate(float realDt, float gameplayDt) {
         const bool* keyStates = SDL_GetKeyboardState(nullptr);
         static bool f5PressedLastFrame = false;
         if (keyStates[SDL_SCANCODE_F5] && !f5PressedLastFrame) {
@@ -111,13 +111,13 @@ namespace App {
         f5PressedLastFrame = keyStates[SDL_SCANCODE_F5];
 
         if (m_player) {
-            m_player->update(deltaTime, m_cameraMode);
+            m_player->update(gameplayDt, m_cameraMode);
 
             float px = m_player->getX();
             float py = m_player->getY();
             float pz = m_player->getZ();
 
-            m_camera.update(deltaTime, m_cameraMode, px, py, pz,
+            m_camera.update(gameplayDt, m_cameraMode, px, py, pz,
                 m_player->getYaw(), m_player->getPitch());
         }
     }

@@ -1,0 +1,3576 @@
+
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\CMakeLists.txt
+============================================================
+cmake_minimum_required(VERSION 3.22)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
+project(Solace LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+find_package(OpenGL REQUIRED)
+
+include(FetchContent)
+
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
+# Оптимизации внешних библиотек
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
+
+set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+
+set(ozz_build_samples OFF CACHE BOOL "" FORCE)
+set(ozz_build_tests OFF CACHE BOOL "" FORCE)
+set(ozz_build_howtos OFF CACHE BOOL "" FORCE)
+set(ozz_build_tools ON CACHE BOOL "" FORCE)
+set(ozz_build_gltf ON CACHE BOOL "" FORCE)
+set(ozz_build_fbx OFF CACHE BOOL "" FORCE)
+set(ozz_build_msvc_rt_dll ON CACHE BOOL "" FORCE)
+
+# --- 1. ОБЪЯВЛЕНИЕ FETCHCONTENT ДЛЯ ВСЕХ БИБЛИОТЕК ---
+
+FetchContent_Declare(
+    assimp
+    URL https://github.com/assimp/assimp/archive/refs/tags/v5.3.1.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_Declare(
+    imgui
+    URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.6.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_Declare(
+    SDL3
+    URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_Declare(
+    glad
+    URL https://github.com/arrayfire/glad/archive/refs/heads/master.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_Declare(
+    stb
+    URL https://github.com/nothings/stb/archive/refs/heads/master.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_Declare(
+    ozz-animation
+    GIT_REPOSITORY https://github.com/guillaumeblanc/ozz-animation.git
+    GIT_TAG master
+)
+
+# Загружаем всё в кэш CMake
+FetchContent_MakeAvailable(assimp imgui SDL3 glad stb json ozz-animation)
+
+
+
+# Цель для GLAD
+add_library(glad STATIC
+    ${glad_SOURCE_DIR}/src/glad.c
+)
+target_include_directories(glad PUBLIC
+    ${glad_SOURCE_DIR}/include
+)
+
+# Цель для STB (header-only)
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+
+# Цель для ImGui и её бэкендов
+add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+)
+target_include_directories(imgui PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+
+target_link_libraries(imgui PUBLIC SDL3::SDL3 OpenGL::GL)
+
+add_subdirectory(engine)
+add_subdirectory(game) 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\CMakePresets.json
+============================================================
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-vs-debug",
+      "displayName": "Windows Visual Studio (Debug)",
+      "description": "Configuration for development and debugging under Windows (MSVC)",
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "windows-vs-release",
+      "displayName": "Windows Visual Studio (Release)",
+      "description": "Configuration for final assembly with maximum optimization",
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ]
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\animations\animator.hpp
+============================================================
+#pragma once
+#include <ozz/animation/runtime/animation.h>
+#include <ozz/animation/runtime/skeleton.h>
+#include <ozz/animation/runtime/sampling_job.h>
+#include <ozz/animation/runtime/local_to_model_job.h>
+#include <ozz/base/span.h>
+// Р”РћР‘РђР’Р›РЇР•Рњ РЇР’РќР«Р• Р—РђР“РћР›РћР’РљР OZZ Р”Р›РЇ SIMD Р РњРђРўР РР¦:
+#include <ozz/base/maths/simd_math.h>
+#include <ozz/base/maths/soa_transform.h>
+
+#include <vector>
+#include <string>
+
+namespace Solace {
+    class Animator {
+    public:
+        Animator() = default;
+        ~Animator() = default;
+
+        bool loadSkeleton(const std::string& filename);
+        bool loadAnimation(const std::string& filename);
+        void update(float deltaTime);
+
+        const ozz::animation::Skeleton& GetSkeleton() const { return m_skeleton; }
+
+        const ozz::span<const ozz::math::Float4x4> getBoneMatrices() const {
+            return ozz::make_span(m_skinningMatrices);
+        }
+
+        void setLoop(bool loop) { m_loop = loop; }
+
+    private:
+        ozz::animation::Skeleton m_skeleton;
+        ozz::animation::Animation m_animation;
+        ozz::animation::SamplingJob::Context m_samplingContext;
+
+        std::vector<ozz::math::SoaTransform> m_locals;
+        std::vector<ozz::math::Float4x4> m_models;
+        std::vector<ozz::math::Float4x4> m_inverseBindPoses;
+        std::vector<ozz::math::Float4x4> m_skinningMatrices;
+
+        float m_time = 0.0f;
+        float m_duration = 0.0f;
+        bool m_loop = true;
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\assets\model_loader.hpp
+============================================================
+#pragma once
+
+#include <engine/graphics/mesh.hpp>
+#include <string>
+#include <vector>
+
+namespace Solace {
+    class ModelLoader {
+    public:
+        // Теперь может загружать .glb, .gltf, .obj, .fbx и возвращать набор мешей модели
+        static std::vector<MeshData> loadFromFile(const std::string& path);
+
+        // Обратная совместимость для старого кода (возвращает первый меш или объединяет их)
+        static MeshData loadObj(const std::string& path);
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\clock.hpp
+============================================================
+#pragma once
+
+#include <chrono>
+
+namespace Solace {
+
+    class Clock {
+    public:
+        Clock() {
+            m_start = std::chrono::high_resolution_clock::now();
+            m_lastFrameTime = m_start;
+        }
+
+        // Вызывать в начале каждого кадра для обновления дельты времени
+        void tick() {
+            auto current = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float> elapsed = current - m_lastFrameTime;
+            m_lastFrameTime = current;
+
+            m_rawDeltaTime = elapsed.count();
+            // Ограничиваем максимальную дельту, чтобы игра не «скакала» при лагах
+            if (m_rawDeltaTime > 0.1f) {
+                m_rawDeltaTime = 0.1f;
+            }
+
+            m_deltaTime = m_rawDeltaTime * m_timeScale;
+        }
+
+        float deltaTime() const { return m_deltaTime; }
+        float rawDeltaTime() const { return m_rawDeltaTime; }
+
+        void setTimeScale(float scale) { m_timeScale = scale; }
+        float getTimeScale() const { return m_timeScale; }
+
+        // Общее время работы приложения с момента запуска (в секундах)
+        float totalTime() const {
+            auto current = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float> elapsed = current - m_start;
+            return elapsed.count();
+        }
+
+    private:
+        std::chrono::high_resolution_clock::time_point m_start;
+        std::chrono::high_resolution_clock::time_point m_lastFrameTime;
+        float m_deltaTime = 0.0f;
+        float m_rawDeltaTime = 0.0f;
+        float m_timeScale = 1.0f;
+    };
+
+} // namespace Solace
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\engine.hpp
+============================================================
+#pragma once
+#include <memory>
+#include <functional>
+#include <engine/core/window.hpp>
+#include <engine/graphics/post_process.hpp>
+
+namespace Solace {
+    class Engine {
+    public:
+        Engine();
+        virtual ~Engine();
+
+        Engine(const Engine&) = delete;
+        Engine& operator=(const Engine&) = delete;
+
+        void run();
+
+        virtual void onUpdate(float deltaTime) {}
+        virtual void onRender() {}
+        virtual void onEvent(const SDL_Event& event) {}
+
+        using RenderUICallback = std::function<void()>;
+        void setUIRenderCallback(RenderUICallback callback) { m_uiCallback = callback; }
+
+        Window& getWindow() { return *m_window; }
+        PostProcess* getPostProcess() { return m_post.get(); }
+        PostSettings& postSettings() { return m_post->settings(); }
+
+    private:
+        std::unique_ptr<Window>      m_window;
+        std::unique_ptr<PostProcess> m_post;
+        RenderUICallback             m_uiCallback;
+        bool m_isRunning = true;
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\event_bus.hpp
+============================================================
+#pragma once
+
+#include <functional>
+#include <typeindex>
+#include <unordered_map>
+#include <vector>
+#include <memory>
+
+namespace Solace {
+
+    class EventBus {
+    public:
+        // Шаблон для функции-обработчика конкретного события
+        template<typename T>
+        using EventCallback = std::function<void(const T&)>;
+
+        // Подписка на событие определенного типа T
+        template<typename T>
+        void subscribe(EventCallback<T> callback) {
+            auto typeId = std::type_index(typeid(T));
+
+            // Обертка стирает исходный тип для хранения в общем списке
+            auto internalWrapper = [callback](const void* eventData) {
+                callback(*static_cast<const T*>(eventData));
+                };
+
+            m_subscribers[typeId].push_back(internalWrapper);
+        }
+
+        // Отправка (эмиссия) события всем подписчикам
+        template<typename T>
+        void emit(const T& event) {
+            auto typeId = std::type_index(typeid(T));
+            auto it = m_subscribers.find(typeId);
+            if (it != m_subscribers.end()) {
+                for (auto& handler : it->second) {
+                    handler(&event);
+                }
+            }
+        }
+
+        // Очистка всех подписок (например, при смене сцены)
+        void clear() {
+            m_subscribers.clear();
+        }
+
+    private:
+        using InternalHandler = std::function<void(const void*)>;
+        std::unordered_map<std::type_index, std::vector<InternalHandler>> m_subscribers;
+    };
+
+} // namespace Solace
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\graphics_settings.hpp
+============================================================
+#pragma once
+#include <string>
+#include <array> // Р”РћР‘РђР’Р›Р•РќРћ: РЅСѓР¶РЅРѕ РґР»СЏ std::array
+
+namespace Solace {
+
+    struct LightingSettings {
+        std::array<float, 3> sunDir = { 0.4f, 0.8f, 0.35f };
+        std::array<float, 3> sunColor = { 1.0f, 0.92f, 0.78f };
+        std::array<float, 3> skyColor = { 0.45f, 0.55f, 0.60f };
+        std::array<float, 3> groundColor = { 0.35f, 0.32f, 0.28f };
+        std::array<float, 3> rimColor = { 1.0f, 0.8f, 0.5f };
+
+        float toonMidStep = 0.4f;
+        float toonShadowStep = 0.05f;
+        float rimPower = 0.7f;
+    };
+
+    struct PostProcessSettings {
+        int targetHeight = 180;
+        float paletteBits = 6.0f;
+        float ditherAmount = 0.6f;
+        float bloomStrength = 0.7f;
+        float bloomThreshold = 0.85f;
+    };
+
+    struct GraphicsSettings {
+        LightingSettings lighting;
+        PostProcessSettings postProcess;
+        std::array<float, 3> clearColor = { 0.45f, 0.55f, 0.65f };
+    };
+
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\logger.hpp
+============================================================
+#pragma once
+
+#include <iostream>
+#include <string_view>
+
+namespace Solace {
+    class Logger {
+    public:
+        // Информационное сообщение (Зеленый цвет)
+        template<typename... Args>
+        static void info(Args&&... args) {
+            std::cout << "\033[32m[INFO]\033[0m ";
+            print(std::forward<Args>(args)...);
+        }
+
+        // Предупреждение (Желтый цвет)
+        template<typename... Args>
+        static void warning(Args&&... args) {
+            std::cout << "\033[33m[WARNING]\033[0m ";
+            print(std::forward<Args>(args)...);
+        }
+
+        // Критическая ошибка (Красный цвет)
+        template<typename... Args>
+        static void error(Args&&... args) {
+            std::cerr << "\033[31m[ERROR]\033[0m ";
+            print(std::forward<Args>(args)...);
+        }
+
+        // Отладочное сообщение (Голубой/Циан цвет)
+        template<typename... Args>
+        static void debug(Args&&... args) {
+            std::cout << "\033[36m[DEBUG]\033[0m ";
+            print(std::forward<Args>(args)...);
+        }
+
+    private:
+        // Вспомогательная функция для склеивания любых аргументов в одну строчку (фишка C++17/C++20)
+        template<typename... Args>
+        static void print(Args&&... args) {
+            (std::cout << ... << args);
+            std::cout << "\n";
+        }
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\settings_manager.hpp
+============================================================
+#pragma once
+#include <engine/core/graphics_settings.hpp>
+
+namespace Solace {
+    class SettingsManager {
+    public:
+        // JSON
+        static GraphicsSettings load(const std::string& filepath = "assets/configs/graphics.json");
+
+        // JSON
+        static void save(const GraphicsSettings& settings, const std::string& filepath = "assets/configs/graphics.json");
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\core\window.hpp
+============================================================
+#pragma once 
+
+#include <string>
+#include <SDL3/SDL.h>
+
+namespace Solace {
+    class Window {
+    public:
+        Window(const std::string& title, int width, int height);
+        ~Window();
+
+        Window(const Window&) = delete;
+        Window& operator=(const Window&) = delete;
+
+        int width()  const { return m_width; }
+        int height() const { return m_height; }
+
+        bool shouldClose() const;
+
+        void swapBuffers() const;
+        void toggleFullscreen();
+
+        void updateSize(int newWidth, int newHeight) {
+            m_width = newWidth;
+            m_height = newHeight;
+        }
+
+        SDL_Window* getSDLWindow() const { return m_window; }
+        SDL_GLContext GetGLContext() const { return m_glContext; }
+
+    private:
+        SDL_Window* m_window = nullptr;
+        SDL_GLContext m_glContext = nullptr;
+       
+        int m_width = 0;
+        int m_height = 0;
+
+        bool m_isClosed = false;
+        bool m_isFullscreen = false;
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\debug\debug_overlay.hpp
+============================================================
+#pragma once
+
+#include <string>
+#include <vector>
+#include <functional>
+#include <unordered_map>
+
+namespace Solace {
+
+    using ConsoleCommandFunc = std::function<void(const std::vector<std::string>& args)>;
+
+    class DebugOverlay {
+    public:
+        static void init();
+        static void shutdown();
+
+        static void toggle() { s_isOpen = !s_isOpen; }
+        static bool isOpen() { return s_isOpen; }
+
+        static void registerCommand(const std::string& name, ConsoleCommandFunc func);
+        static void executeCommand(const std::string& commandLine);
+        static void addLog(const std::string& text);
+
+        static void render();
+
+    private:
+        static bool s_isOpen;
+        static char s_inputBuf[256];
+        static std::vector<std::string> s_logs;
+        static std::unordered_map<std::string, ConsoleCommandFunc> s_commands;
+        static bool s_scrollToBottom;
+
+        const static size_t MAX_LOGS = 100;
+    };
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\debug\fps.hpp
+============================================================
+#pragma once
+
+namespace Solace {
+    class Fps {
+    public:
+        static void update(float deltaTimeSeconds); 
+        static float getFPS() { return s_fps; }
+
+        static void setVisible(bool visible) { s_isVisible = visible; }
+        static bool isVisible() { return s_isVisible; }
+
+        static void renderOverlay();
+
+    private:
+        static float s_fps;
+        static float s_accumTime;
+        static int s_frameCount;
+        static bool s_isVisible;
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\graphics\camera.hpp
+============================================================
+#pragma once
+#include <engine/utils/math_utils.hpp>
+
+namespace App {
+    enum class CameraMode { Default, Noclip };
+
+    class Camera {
+    public:
+        void update(float deltaTime, CameraMode mode, float targetX, float targetY, float targetZ, float yaw, float pitch);
+
+        Solace::Mat4 getViewMatrix() const { return m_viewMatrix; }
+        Solace::Mat4 getProjMatrix() const { return m_projMatrix; }
+        void setAspect(float aspect) {
+            float fovRad = 45.0f * 3.14159265f / 180.0f;
+            m_projMatrix = Solace::mat4Perspective(fovRad, aspect, 0.1f, 100.0f);
+        }
+
+    private:
+        Solace::Mat4 m_viewMatrix;
+        Solace::Mat4 m_projMatrix;
+        float m_camX = 0.0f, m_camY = 0.0f, m_camZ = 0.0f;
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\graphics\mesh.hpp
+============================================================
+#pragma once
+
+#include <glad/glad.h>
+#include <vector>
+#include <string>
+
+namespace Solace {
+
+    struct Vertex {
+        float position[3];
+        float normal[3];
+        float uv[2];
+        int   boneIDs[4] = { 0, 0, 0, 0 };
+        float boneWeights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    };
+
+    struct MeshData {
+        std::vector<Vertex>         vertices;
+        std::vector<unsigned int>   indices;
+        std::string                 diffuseTexturePath;
+        bool                        hasEmbeddedTexture = false;
+        std::vector<unsigned char>  embeddedBytes;
+        std::vector<std::string>    boneNames;
+
+        float baseColor[3] = { 1.0f, 1.0f, 1.0f };
+    };
+
+    class Mesh {
+    public:
+        Mesh() = default;
+        explicit Mesh(const MeshData& data);
+        ~Mesh();
+
+        Mesh(const Mesh&) = delete;
+        Mesh& operator=(const Mesh&) = delete;
+        Mesh(Mesh&& other) noexcept;
+        Mesh& operator=(Mesh&& other) noexcept;
+
+        void upload(const MeshData& data);
+        void draw() const;
+        static GLuint getDefaultTextureID();
+
+        unsigned int indexCount() const { return m_indexCount; }
+        bool valid() const { return m_vao != 0; }
+        GLuint getTextureID() const { return m_textureID; }
+        const float* getBaseColor() const { return m_baseColor; }
+
+        bool hasTexture() const { return m_hasTexture; }
+
+    private:
+        void release();
+        GLuint m_vao = 0, m_vbo = 0, m_ebo = 0, m_textureID = 0;
+        unsigned int m_indexCount = 0;
+
+        float m_baseColor[3] = { 1.0f, 1.0f, 1.0f };
+
+        static GLuint s_defaultTextureID;
+
+        bool m_hasTexture = false;
+    };
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\graphics\post_process.hpp
+============================================================
+#pragma once
+
+#include <glad/glad.h>
+#include <engine/graphics/shader.hpp>
+#include <memory>
+
+namespace Solace {
+
+    struct PostSettings {
+        int targetHeight = 90;
+        float paletteBits = 6.0f;
+        float ditherAmount = 0.5f;
+        float bloomStrength = 0.8f;
+        float bloomThreshold = 0.9f;
+    };
+
+    class PostProcess {
+    public:
+        explicit PostProcess(const PostSettings& settings = PostSettings{});
+        ~PostProcess();
+
+        PostProcess(const PostProcess&) = delete;
+        PostProcess& operator=(const PostProcess&) = delete;
+
+
+        void applySettings(const PostSettings& newSettings);
+
+        void beginScene(int windowW, int windowH);
+        void endScene(int windowW, int windowH);
+
+        PostSettings& settings() { return m_settings; }
+        int internalWidth()  const { return m_internalW; }
+        int internalHeight() const { return m_internalH; }
+
+    private:
+        void recreateTarget();
+        void createFullscreenTriangle();
+        void release();
+
+        PostSettings m_settings;
+        std::unique_ptr<Shader> m_shader;
+        GLuint m_fbo = 0;
+        GLuint m_colorTex = 0;
+        GLuint m_depthRbo = 0;
+        GLuint m_quadVao = 0;
+        GLuint m_quadVbo = 0;
+        int m_internalW = 0;
+        int m_internalH = 0;
+        int m_lastWindowW = 0;
+        int m_lastWindowH = 0;
+    };
+
+} // namespace Solace 
+
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\graphics\shader.hpp
+============================================================
+#pragma once
+
+#include <string>
+#include <glad/glad.h>
+
+namespace Solace {
+    class Shader {
+    public:
+        Shader(const std::string& vertexPath, const std::string& fragmentPath);
+        ~Shader();
+
+        Shader(const Shader&) = delete;
+
+        Shader& operator=(const Shader&) = delete;
+
+        void bind() const;
+        void unbind() const;
+
+        void setInt(const std::string& name, int value) const;
+        void setFloat(const std::string& name, float value) const;
+
+        void setVec2(const std::string& name, float x, float y) const;
+        void setVec3(const std::string& name, float x, float y, float z) const;
+        void setVec4(const std::string& name, float x, float y, float z, float w) const;
+
+        void setMat4(const std::string& name, const float* columnMajor4x4) const;
+
+        GLuint getID() const { return m_rendererID; }
+
+    private:
+        GLuint m_rendererID = 0;
+
+        std::string readFile(const std::string& filepath);
+        GLuint compileShader(GLenum type, const std::string& source);
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\systems\input_system.hpp
+============================================================
+#pragma once
+
+#include <SDL3/SDL.h>
+#include <unordered_map>
+#include <bitset>
+
+namespace Solace {
+    enum class GameAction {
+        Dash,
+        FlyDown,
+        AttackPrimary,
+        AttackHeavy,
+        Interact,
+        ToggleFullscreen,
+        Pause,
+        Count
+    };
+    enum class GameAxis {
+        MoveX,
+        MoveY,
+        FlyY,
+        AimX,
+        AimY,
+        MouseDeltaX,
+        MouseDeltaY,
+        Count
+    };
+
+    class InputSystem {
+    public:
+        InputSystem() = delete;
+        ~InputSystem() = delete;
+
+        static void init();
+        static void update();
+        static void handleEvent(const SDL_Event& event);
+
+        static bool isActionDown(GameAction action);
+        static bool isActionJustPressed(GameAction action);
+        static bool isActionJustReleased(GameAction action);
+
+        static float getAxis(GameAxis axis);
+
+        static void getMousePosition(float& outX, float& outY);
+
+        static void bindKeyToAction(GameAction action, SDL_Scancode scancode);
+        static void bindMouseButtonToAction(GameAction action, Uint8 button);
+
+    private:
+        static std::bitset<(size_t)GameAction::Count> s_actionStates;
+        static std::bitset<(size_t)GameAction::Count> s_actionPrevStates;
+
+        static float s_axisValues[(size_t)GameAxis::Count];
+        static float s_mouseX;
+        static float s_mouseY;
+
+        static std::unordered_map<SDL_Scancode, GameAction> s_keyToActionMap;
+        static std::unordered_map<Uint8, GameAction> s_mouseButtonToActionMap;
+
+        static void setActionState(GameAction action, bool pressed);
+    };
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\include\engine\utils\math_utils.hpp
+============================================================
+#pragma once
+#include <array>
+#include <cmath>
+
+namespace Solace {
+    using Mat4 = std::array<float, 16>;
+
+    Mat4 mat4Identity();
+    Mat4 mat4Translate(float x, float y, float z);
+    Mat4 mat4Scale(float x, float y, float z);
+    Mat4 mat4Multiply(const Mat4& a, const Mat4& b);
+
+    Mat4 mat4Perspective(float fovYRad, float aspect, float nearZ, float farZ);
+
+    Mat4 mat4LookAt(float ex, float ey, float ez,
+        float cx, float cy, float cz,
+        float ux, float uy, float uz);
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\animations\animator.cpp
+============================================================
+#include <engine/animations/animator.hpp>
+#include <ozz/animation/runtime/skeleton_utils.h>
+#include <ozz/base/maths/soa_transform.h>
+#include <ozz/base/maths/simd_math.h>
+#include <ozz/base/io/archive.h>
+#include <ozz/base/io/stream.h>
+#include <engine/core/logger.hpp>
+#include <cmath>
+#include <algorithm>
+#include <cstring>
+
+namespace Solace {
+
+    bool Animator::loadSkeleton(const std::string& filename) {
+        ozz::io::File file(filename.c_str(), "rb");
+        if (!file.opened()) {
+            Logger::error("Animator: FAILED to open skeleton file: ", filename);
+            return false;
+        }
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Skeleton>()) {
+            Logger::error("Animator: file is not a valid skeleton: ", filename);
+            return false;
+        }
+        archive >> m_skeleton;
+        m_samplingContext.Resize(m_skeleton.num_joints());
+
+        std::vector<ozz::math::SoaTransform> restLocals(m_skeleton.num_soa_joints());
+        std::memcpy(restLocals.data(), m_skeleton.joint_rest_poses().data(),
+            restLocals.size() * sizeof(ozz::math::SoaTransform));
+
+        std::vector<ozz::math::Float4x4> restModels(m_skeleton.num_joints());
+        ozz::animation::LocalToModelJob ltm;
+        ltm.skeleton = &m_skeleton;
+        ltm.input = ozz::make_span(restLocals);
+        ltm.output = ozz::make_span(restModels);
+        if (!ltm.Run()) {
+            Logger::error("Animator: failed to compute rest pose");
+            return false;
+        }
+
+        m_inverseBindPoses.resize(m_skeleton.num_joints());
+        for (size_t i = 0; i < m_inverseBindPoses.size(); ++i) {
+            m_inverseBindPoses[i] = ozz::math::Invert(restModels[i]);
+        }
+
+        Logger::info("Animator: skeleton loaded OK. Joints: ", m_skeleton.num_joints());
+        return true;
+    }
+
+    bool Animator::loadAnimation(const std::string& filename) {
+        ozz::io::File file(filename.c_str(), "rb");
+        if (!file.opened()) {
+            Logger::error("Animator: FAILED to open animation file: ", filename);
+            return false;
+        }
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Animation>()) {
+            Logger::error("Animator: file is not a valid animation: ", filename);
+            return false;
+        }
+        archive >> m_animation;
+        m_duration = m_animation.duration();
+        m_locals.resize(m_skeleton.num_soa_joints());
+        m_models.resize(m_skeleton.num_joints());
+        m_skinningMatrices.resize(m_skeleton.num_joints());
+        Logger::info("Animator: animation loaded OK. Duration: ", m_duration, "s");
+        return true;
+    }
+
+    void Animator::update(float deltaTime) {
+        if (m_duration <= 0.0f) return;
+
+        m_time += deltaTime;
+        if (m_loop) m_time = std::fmod(m_time, m_duration);
+        else m_time = std::min(m_time, m_duration);
+
+        float ratio = m_time / m_duration;
+
+        ozz::animation::SamplingJob sampling_job;
+        sampling_job.animation = &m_animation;
+        sampling_job.context = &m_samplingContext;
+        sampling_job.ratio = ratio;
+        sampling_job.output = ozz::make_span(m_locals);
+        if (!sampling_job.Run()) return;
+
+        // 2. Local -> Model
+        ozz::animation::LocalToModelJob ltm_job;
+        ltm_job.skeleton = &m_skeleton;
+        ltm_job.input = ozz::make_span(m_locals);
+        ltm_job.output = ozz::make_span(m_models);
+        if (!ltm_job.Run()) {
+            Logger::error("ozz: LocalToModel failed!");
+            return;
+        }
+
+        for (size_t i = 0; i < m_models.size(); ++i) {
+            m_skinningMatrices[i] = m_models[i] * m_inverseBindPoses[i];
+        }
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\assets\model_loader.cpp
+============================================================
+#include <engine/assets/model_loader.hpp>
+#include <engine/core/logger.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <stdexcept>
+#include <cstring>
+#include <filesystem>
+#include <map>
+
+namespace Solace {
+
+    void processNode(aiNode* node, const aiScene* scene, std::vector<MeshData>& outMeshes, const std::filesystem::path& basePath) {
+        for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+            aiMesh* aiMeshPtr = scene->mMeshes[node->mMeshes[i]];
+            MeshData meshData;
+
+            if (scene->mMaterials && aiMeshPtr->mMaterialIndex < scene->mNumMaterials) {
+                aiMaterial* material = scene->mMaterials[aiMeshPtr->mMaterialIndex];
+                aiString aiTexPath;
+                aiTextureType typesToCheck[] = {
+                    aiTextureType_DIFFUSE,
+                    aiTextureType_BASE_COLOR,
+                    aiTextureType_UNKNOWN,
+                    aiTextureType_EMISSIVE,
+                    aiTextureType_AMBIENT,
+                    aiTextureType_SPECULAR
+                };
+
+                Logger::info("--- Material ", aiMeshPtr->mMaterialIndex, " textures ---");
+                for (int t = 0; t < aiTextureType_UNKNOWN + 1; t++) {
+                    aiTextureType type = static_cast<aiTextureType>(t);
+                    UINT count = material->GetTextureCount(type);
+                    if (count > 0) {
+                        aiString texPath;
+                        material->GetTexture(type, 0, &texPath);
+                        Logger::info("  Type ", t, ": ", count, " textures, first = '", texPath.C_Str(), "'");
+                    }
+                }
+                bool textureFound = false;
+                for (aiTextureType type : typesToCheck) {
+                    if (material->GetTextureCount(type) > 0) {
+                        if (material->GetTexture(type, 0, &aiTexPath) == AI_SUCCESS) {
+                            std::string texPath = aiTexPath.C_Str();
+                            std::filesystem::path p(texPath);
+                            std::string filename = p.filename().string();
+                            const aiTexture* embeddedTex = scene->GetEmbeddedTexture(texPath.c_str());
+                            if (embeddedTex) {
+                                meshData.hasEmbeddedTexture = true;
+                                size_t sizeInBytes = (embeddedTex->mHeight == 0) ? embeddedTex->mWidth : embeddedTex->mWidth * embeddedTex->mHeight * 4;
+                                meshData.embeddedBytes.resize(sizeInBytes);
+                                std::memcpy(meshData.embeddedBytes.data(), embeddedTex->pcData, sizeInBytes);
+                                meshData.diffuseTexturePath = "embedded_" + std::to_string(aiMeshPtr->mMaterialIndex);
+                                textureFound = true;
+                                break;
+                            }
+                            else {
+                                std::filesystem::path path1 = basePath / "textures" / filename;
+                                std::filesystem::path path2 = basePath / filename;
+                                if (std::filesystem::exists(path1)) { meshData.diffuseTexturePath = path1.string(); textureFound = true; break; }
+                                else if (std::filesystem::exists(path2)) { meshData.diffuseTexturePath = path2.string(); textureFound = true; break; }
+                            }
+                        }
+                    }
+                }
+                if (!textureFound) {
+                    aiColor3D aiColor(1.0f, 1.0f, 1.0f);
+                    if (material->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor) == AI_SUCCESS) {
+                        meshData.baseColor[0] = aiColor.r;
+                        meshData.baseColor[1] = aiColor.g;
+                        meshData.baseColor[2] = aiColor.b;
+                        Logger::info("ModelLoader: No texture, using material color: R=", aiColor.r, " G=", aiColor.g, " B=", aiColor.b);
+                    }
+                }
+            }
+
+
+
+            for (unsigned int v = 0; v < aiMeshPtr->mNumVertices; v++) {
+                Vertex vertex{};
+                vertex.position[0] = aiMeshPtr->mVertices[v].x;
+                vertex.position[1] = aiMeshPtr->mVertices[v].y;
+                vertex.position[2] = aiMeshPtr->mVertices[v].z;
+
+                if (aiMeshPtr->HasNormals()) {
+                    vertex.normal[0] = aiMeshPtr->mNormals[v].x;
+                    vertex.normal[1] = aiMeshPtr->mNormals[v].y;
+                    vertex.normal[2] = aiMeshPtr->mNormals[v].z;
+                }
+                else {
+                    vertex.normal[0] = 0.0f; vertex.normal[1] = 1.0f; vertex.normal[2] = 0.0f;
+                }
+
+                if (aiMeshPtr->HasTextureCoords(0)) {
+                    vertex.uv[0] = aiMeshPtr->mTextureCoords[0][v].x;
+                    vertex.uv[1] = aiMeshPtr->mTextureCoords[0][v].y;
+                }
+                else {
+                    vertex.uv[0] = 0.0f; vertex.uv[1] = 0.0f;
+                }
+
+                meshData.vertices.push_back(vertex);
+            }
+
+            if (aiMeshPtr->HasBones()) {
+                Logger::info("  Mesh has ", aiMeshPtr->mNumBones, " bones");
+
+                for (unsigned int b = 0; b < aiMeshPtr->mNumBones; b++) {
+                    meshData.boneNames.push_back(aiMeshPtr->mBones[b]->mName.C_Str());
+                }
+
+                int vertsWithWeights = 0;
+                for (unsigned int b = 0; b < aiMeshPtr->mNumBones; b++) {
+                    aiBone* bone = aiMeshPtr->mBones[b];
+                    for (unsigned int w = 0; w < bone->mNumWeights; w++) {
+                        unsigned int vId = bone->mWeights[w].mVertexId;
+                        float weight = bone->mWeights[w].mWeight;
+                        if (weight <= 0.0f) continue;
+                        if (vId >= meshData.vertices.size()) continue;
+                        Vertex& v = meshData.vertices[vId];
+                        bool placed = false;
+                        for (int s = 0; s < 4; s++) {
+                            if (v.boneWeights[s] == 0.0f) {
+                                v.boneWeights[s] = weight;
+                                v.boneIDs[s] = static_cast<int>(b);
+                                placed = true;
+                                if (s == 0) vertsWithWeights++;
+                                break;
+                            }
+                        }
+                    }
+                }
+                Logger::info("  Vertices with weights: ", vertsWithWeights, " / ", meshData.vertices.size());
+            }
+            else {
+                Logger::warning("  Mesh has NO bones!");
+            }
+
+            for (unsigned int f = 0; f < aiMeshPtr->mNumFaces; f++) {
+                aiFace face = aiMeshPtr->mFaces[f];
+                for (unsigned int j = 0; j < face.mNumIndices; j++) {
+                    meshData.indices.push_back(face.mIndices[j]);
+                }
+            }
+
+            outMeshes.push_back(meshData);
+        }
+
+        for (unsigned int i = 0; i < node->mNumChildren; i++) {
+            processNode(node->mChildren[i], scene, outMeshes, basePath);
+        }
+    }
+
+    std::vector<MeshData> ModelLoader::loadFromFile(const std::string& path) {
+        Assimp::Importer importer;
+
+        const aiScene* scene = importer.ReadFile(path,
+            aiProcess_Triangulate |
+            aiProcess_GenSmoothNormals |
+            aiProcess_FlipUVs |
+            aiProcess_CalcTangentSpace |
+            aiProcess_LimitBoneWeights);
+
+        if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !scene->mRootNode) {
+            throw std::runtime_error("Assimp error loading model (" + path + "): " + importer.GetErrorString());
+        }
+
+        std::vector<MeshData> outMeshes;
+        std::filesystem::path modelPath(path);
+        std::filesystem::path basePath = modelPath.parent_path();
+
+        processNode(scene->mRootNode, scene, outMeshes, basePath);
+
+        Logger::info("ModelLoader: successfully loaded '", path, "' (Meshes found: ", outMeshes.size(), ")");
+        return outMeshes;
+    }
+
+    MeshData ModelLoader::loadObj(const std::string& path) {
+        auto meshes = loadFromFile(path);
+        if (meshes.empty()) throw std::runtime_error("ModelLoader: No meshes found in file: " + path);
+        return meshes[0];
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\core\engine.cpp
+============================================================
+#include <engine/core/engine.hpp>
+#include <engine/core/logger.hpp>
+#include <engine/systems/input_system.hpp>
+#include <SDL3/SDL.h>
+#include <engine/debug/fps.hpp>
+
+namespace Solace {
+    Engine::Engine() {
+        Logger::info("Initializing Solace Engine (Clean Core)...");
+        m_window = std::make_unique<Window>("Solace", 1280, 720);
+        m_post = std::make_unique<PostProcess>();
+
+        if (m_window && m_window->getSDLWindow()) {
+            SDL_Window* sdlWin = m_window->getSDLWindow();
+            SDL_SetWindowRelativeMouseMode(sdlWin, true);
+            InputSystem::init();
+        }
+    }
+
+    void Engine::run() {
+        Logger::info("Entering main game loop...");
+        SDL_Event event;
+
+        Uint64 lastCounter = SDL_GetPerformanceCounter();
+        const Uint64 frequency = SDL_GetPerformanceFrequency();
+
+        while (m_isRunning) {
+            Uint64 currentCounter = SDL_GetPerformanceCounter();
+            float deltaTime = static_cast<float>(currentCounter - lastCounter) / static_cast<float>(frequency);
+            lastCounter = currentCounter;
+
+            if (deltaTime > 0.1f) deltaTime = 0.1f;
+
+            InputSystem::update();
+
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_EVENT_QUIT) m_isRunning = false;
+
+                onEvent(event);
+                InputSystem::handleEvent(event);
+
+                if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                    m_window->updateSize(event.window.data1, event.window.data2);
+                }
+            }
+
+            if (InputSystem::isActionJustPressed(GameAction::ToggleFullscreen)) {
+                m_window->toggleFullscreen();
+            }
+
+            if (m_window->shouldClose()) m_isRunning = false;
+
+            Fps::update(deltaTime);
+            onUpdate(deltaTime);
+
+            m_post->beginScene(m_window->width(), m_window->height());
+            onRender();
+            m_post->endScene(m_window->width(), m_window->height());
+
+            if (m_uiCallback) {
+                m_uiCallback();
+            }
+
+            m_window->swapBuffers();
+        }
+    }
+
+    Engine::~Engine() {
+        Logger::info("Shutting down Solace Engine...");
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\core\settings_manager.cpp
+============================================================
+#include <engine/core/settings_manager.hpp>
+#include <engine/core/logger.hpp>
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <filesystem>
+
+using json = nlohmann::json;
+
+namespace Solace {
+
+    GraphicsSettings SettingsManager::load(const std::string& filepath) {
+        GraphicsSettings settings;
+
+        if (!std::filesystem::exists(filepath)) {
+            Logger::warning("Settings file not found. Creating default: ", filepath);
+            save(settings, filepath);
+            return settings;
+        }
+
+        try {
+            std::ifstream file(filepath);
+            json j;
+            file >> j;
+
+            if (j.contains("lighting")) {
+                auto& l = j["lighting"];
+                l.at("sunDir").get_to(settings.lighting.sunDir);
+                l.at("sunColor").get_to(settings.lighting.sunColor);
+                l.at("skyColor").get_to(settings.lighting.skyColor);
+                l.at("groundColor").get_to(settings.lighting.groundColor);
+                l.at("toonMidStep").get_to(settings.lighting.toonMidStep);
+                l.at("toonShadowStep").get_to(settings.lighting.toonShadowStep);
+                l.at("rimColor").get_to(settings.lighting.rimColor);
+                l.at("rimPower").get_to(settings.lighting.rimPower);
+            }
+            if (j.contains("postProcess")) {
+                auto& p = j["postProcess"];
+                p.at("targetHeight").get_to(settings.postProcess.targetHeight);
+                p.at("paletteBits").get_to(settings.postProcess.paletteBits);
+                p.at("ditherAmount").get_to(settings.postProcess.ditherAmount);
+                p.at("bloomStrength").get_to(settings.postProcess.bloomStrength);
+                p.at("bloomThreshold").get_to(settings.postProcess.bloomThreshold);
+            }
+
+            if (j.contains("clearColor")) {
+                j.at("clearColor").get_to(settings.clearColor);
+            }
+
+            Logger::info("Graphics settings loaded from: ", filepath);
+        }
+        catch (const std::exception& e) {
+            Logger::error("Failed to parse graphics.json: ", e.what());
+        }
+
+        return settings;
+    }
+
+    void SettingsManager::save(const GraphicsSettings& settings, const std::string& filepath) {
+        json j;
+
+        j["lighting"]["sunDir"] = settings.lighting.sunDir;
+        j["lighting"]["sunColor"] = settings.lighting.sunColor;
+        j["lighting"]["skyColor"] = settings.lighting.skyColor;
+        j["lighting"]["groundColor"] = settings.lighting.groundColor;
+        j["lighting"]["toonMidStep"] = settings.lighting.toonMidStep;
+        j["lighting"]["toonShadowStep"] = settings.lighting.toonShadowStep;
+        j["lighting"]["rimColor"] = settings.lighting.rimColor;
+        j["lighting"]["rimPower"] = settings.lighting.rimPower;
+
+        j["postProcess"]["targetHeight"] = settings.postProcess.targetHeight;
+        j["postProcess"]["paletteBits"] = settings.postProcess.paletteBits;
+        j["postProcess"]["ditherAmount"] = settings.postProcess.ditherAmount;
+        j["postProcess"]["bloomStrength"] = settings.postProcess.bloomStrength;
+        j["postProcess"]["bloomThreshold"] = settings.postProcess.bloomThreshold;
+
+        j["clearColor"] = settings.clearColor;
+
+        std::filesystem::create_directories(std::filesystem::path(filepath).parent_path());
+
+        std::ofstream file(filepath);
+        file << j.dump(4);
+        Logger::info("Graphics settings saved to: ", filepath);
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\core\window.cpp
+============================================================
+#include <engine/core/window.hpp>
+#include <engine/core/logger.hpp>
+#include <glad/glad.h>
+
+namespace Solace {
+    Window::Window(const std::string& title, int width, int height) {
+        if (!SDL_Init(SDL_INIT_VIDEO)) {
+            Logger::error("Failed to initialize SDL: ", SDL_GetError());
+        }
+
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+        m_window = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        if (!m_window) {
+            Logger::error("Failed to create SDL window: ", SDL_GetError());
+        }
+
+        m_glContext = SDL_GL_CreateContext(m_window);
+        if (!m_glContext) {
+            Logger::error("Failed to create OpenGL Context!");
+        }
+
+        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+            Logger::error("Failed to initialize GLAD (OpenGL loader)!");
+        }
+        else {
+            Logger::info("GLAD successfully initialized! OpenGL version loaded.");
+        }
+
+        m_height = height;
+        m_width = width;
+
+        Logger::info("Window successfully created: ", width, "x", height);
+    }
+
+    Window::~Window() {
+        SDL_GL_DestroyContext(m_glContext);
+        SDL_DestroyWindow(m_window);
+        SDL_Quit();
+        Logger::info("Window destroyed safely.");
+    }
+
+    bool Window::shouldClose() const {
+        return m_isClosed;
+    }
+
+    void Window::swapBuffers() const {
+        SDL_GL_SwapWindow(m_window);
+    }
+
+    void Window::toggleFullscreen() {
+        m_isFullscreen = !m_isFullscreen;
+
+        SDL_SetWindowFullscreen(m_window, m_isFullscreen);
+
+        Logger::info(m_isFullscreen ? "Switched to Fullscreen mode." : "Switched to Windowed mode.");
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\debug\debug_overlay.cpp
+============================================================
+#include <engine/debug/debug_overlay.hpp>
+#include <engine/core/logger.hpp>
+#include <imgui.h>
+#include <sstream>
+#include <algorithm>
+
+namespace Solace {
+
+    bool DebugOverlay::s_isOpen = false;
+    char DebugOverlay::s_inputBuf[256] = "";
+    std::vector<std::string> DebugOverlay::s_logs;
+    std::unordered_map<std::string, ConsoleCommandFunc> DebugOverlay::s_commands;
+    bool DebugOverlay::s_scrollToBottom = false;
+
+    static std::vector<std::string> s_history;
+    static int s_historyPos = -1;
+
+    static int TextEditCallback(ImGuiInputTextCallbackData* data) {
+        if (data->EventKey == ImGuiKey_UpArrow) {
+            if (s_history.empty()) return 0;
+            if (s_historyPos == -1)
+                s_historyPos = static_cast<int>(s_history.size()) - 1;
+            else if (s_historyPos > 0)
+                s_historyPos--;
+
+            data->DeleteChars(0, data->BufTextLen);
+            data->InsertChars(0, s_history[s_historyPos].c_str());
+        }
+        else if (data->EventKey == ImGuiKey_DownArrow) {
+            if (s_historyPos == -1) return 0;
+            if (s_historyPos < static_cast<int>(s_history.size()) - 1) {
+                s_historyPos++;
+                data->DeleteChars(0, data->BufTextLen);
+                data->InsertChars(0, s_history[s_historyPos].c_str());
+            }
+            else {
+                s_historyPos = -1;
+                data->DeleteChars(0, data->BufTextLen);
+            }
+        }
+        return 0;
+    }
+
+    void DebugOverlay::init() {
+        Logger::info("DebugOverlay (ImGui) initialized.");
+        addLog("=== Solace Engine Dev Console ===");
+        addLog("Type 'help' for available commands. Use Up/Down arrows for history.");
+
+        registerCommand("help", [](const std::vector<std::string>& args) {
+            addLog("--- Available Commands ---");
+            addLog("  help          - Show this help message");
+            addLog("  clear         - Clear console log");
+            addLog("  mode dev/game - Switch camera mode");
+            addLog("  fps 0/1       - Toggle FPS counter overlay");
+            });
+
+        registerCommand("clear", [](const std::vector<std::string>& args) {
+            s_logs.clear();
+            });
+    }
+
+    void DebugOverlay::shutdown() {
+        s_commands.clear();
+        s_logs.clear();
+        s_history.clear();
+    }
+
+    void DebugOverlay::addLog(const std::string& text) {
+        if (s_logs.size() >= MAX_LOGS) {
+            s_logs.erase(s_logs.begin());
+        }
+        s_logs.push_back(text);
+        s_scrollToBottom = true;
+    }
+
+    void DebugOverlay::registerCommand(const std::string& name, ConsoleCommandFunc func) {
+        s_commands[name] = func;
+    }
+
+    void DebugOverlay::executeCommand(const std::string& commandLine) {
+        std::stringstream ss(commandLine);
+        std::string cmdName;
+        ss >> cmdName;
+
+        std::vector<std::string> args;
+        std::string arg;
+        while (ss >> arg) {
+            args.push_back(arg);
+        }
+
+        auto it = s_commands.find(cmdName);
+        if (it != s_commands.end()) {
+            it->second(args);
+        }
+        else {
+            addLog("Unknown command: '" + cmdName + "'. Type 'help'.");
+        }
+    }
+
+    void DebugOverlay::render() {
+        if (!s_isOpen) return;
+
+        ImGui::SetNextWindowSize(ImVec2(900, 320), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
+
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.08f, 0.08f, 0.1f, 0.92f));
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.3f, 0.5f, 0.8f, 0.5f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
+
+        if (ImGui::Begin("Solace Developer Console", &s_isOpen, ImGuiWindowFlags_NoScrollbar)) {
+            const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+            if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar)) {
+
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 2));
+                for (const auto& log : s_logs) {
+                    ImVec4 color = ImVec4(0.85f, 0.85f, 0.85f, 1.0f); 
+                    if (log.find("[ERROR]") != std::string::npos) color = ImVec4(1.0f, 0.35f, 0.35f, 1.0f); 
+                    else if (log.find("[WARNING]") != std::string::npos) color = ImVec4(1.0f, 0.8f, 0.2f, 1.0f); 
+                    else if (log.find("> ") == 0) color = ImVec4(0.4f, 0.85f, 1.0f, 1.0f); 
+
+                    ImGui::PushStyleColor(ImGuiCol_Text, color);
+                    ImGui::TextUnformatted(log.c_str());
+                    ImGui::PopStyleColor();
+                }
+
+                if (s_scrollToBottom) {
+                    ImGui::SetScrollHereY(1.0f);
+                    s_scrollToBottom = false;
+                }
+
+                ImGui::PopStyleVar();
+            }
+            ImGui::EndChild();
+
+            ImGui::Separator();
+
+            bool reclaim_focus = false;
+            ImGuiInputTextFlags input_text_flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory;
+
+            ImGui::PushItemWidth(-1.0f);
+            if (ImGui::InputText("##ConsoleInput", s_inputBuf, IM_ARRAYSIZE(s_inputBuf), input_text_flags, &TextEditCallback)) {
+                std::string s(s_inputBuf);
+                if (!s.empty()) {
+                    addLog("> " + s);
+                    executeCommand(s);
+                    s_history.push_back(s);
+                    s_historyPos = -1;
+                }
+                strcpy_s(s_inputBuf, "");
+                reclaim_focus = true;
+            }
+            ImGui::PopItemWidth();
+
+            if (ImGui::IsWindowAppearing() || reclaim_focus) {
+                ImGui::SetKeyboardFocusHere(-1);
+            }
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(2);
+    }
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\debug\fps.cpp
+============================================================
+#include <engine/debug/fps.hpp>
+
+namespace Solace {
+    float Fps::s_fps = 0.0f;
+    float Fps::s_accumTime = 0.0f;
+    int Fps::s_frameCount = 0;
+    bool Fps::s_isVisible = true;
+
+    void Fps::update(float deltaTimeSeconds) {
+        s_accumTime += deltaTimeSeconds;
+        s_frameCount++;
+
+        if (s_accumTime >= 1.0f) {
+            s_fps = static_cast<float>(s_frameCount) / s_accumTime;
+            s_accumTime = 0.0f;
+            s_frameCount = 0;
+        }
+    }
+
+    void Fps::renderOverlay() {
+        if (!s_isVisible) return;
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\graphics\camera.cpp
+============================================================
+#include <engine/graphics/camera.hpp>
+#include <cmath>
+
+namespace App {
+    void Camera::update(float deltaTime, CameraMode mode, float targetX, float targetY, float targetZ, float yaw, float pitch) {
+        if (mode == CameraMode::Noclip) {
+            float yawRad = yaw * 3.14159265f / 180.0f;
+            float pitchRad = pitch * 3.14159265f / 180.0f;
+
+            float dirX = std::cos(yawRad) * std::cos(pitchRad);
+            float dirY = std::sin(pitchRad);
+            float dirZ = std::sin(yawRad) * std::cos(pitchRad);
+
+            m_camX = targetX; m_camY = targetY; m_camZ = targetZ;
+
+            m_viewMatrix = Solace::mat4LookAt(
+                m_camX, m_camY, m_camZ,
+                targetX + dirX, targetY + dirY, targetZ + dirZ,
+                0.0f, 1.0f, 0.0f
+            );
+        }
+        else if (mode == CameraMode::Default) {
+            float targetEyeX = targetX;
+            float targetEyeY = targetY + 3.0f;
+            float targetEyeZ = targetZ + 4.5f;
+
+            float smoothSpeed = 5.0f * deltaTime;
+            m_camX += (targetEyeX - m_camX) * smoothSpeed;
+            m_camY += (targetEyeY - m_camY) * smoothSpeed;
+            m_camZ += (targetEyeZ - m_camZ) * smoothSpeed;
+
+            m_viewMatrix = Solace::mat4LookAt(
+                m_camX, m_camY, m_camZ,
+                targetX, targetY + 1.0f, targetZ,
+                0.0f, 1.0f, 0.0f
+            );
+        }
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\graphics\mesh.cpp
+============================================================
+#include <engine/graphics/mesh.hpp>
+#include <engine/core/logger.hpp>
+#include <stb_image.h>
+#include <cstddef>
+#include <utility>
+
+namespace Solace {
+
+    GLuint Mesh::s_defaultTextureID = 0;
+
+    Mesh::Mesh(const MeshData& data) { upload(data); }
+    Mesh::~Mesh() { release(); }
+
+    Mesh::Mesh(Mesh&& other) noexcept
+        : m_vao(other.m_vao), m_vbo(other.m_vbo), m_ebo(other.m_ebo), m_indexCount(other.m_indexCount), m_textureID(other.m_textureID) {
+        other.m_vao = other.m_vbo = other.m_ebo = other.m_textureID = 0;
+        other.m_indexCount = 0;
+    }
+
+    Mesh& Mesh::operator=(Mesh&& other) noexcept {
+        if (this != &other) {
+            release();
+            m_vao = other.m_vao; m_vbo = other.m_vbo; m_ebo = other.m_ebo;
+            m_textureID = other.m_textureID;
+            m_indexCount = other.m_indexCount;
+            other.m_vao = other.m_vbo = other.m_ebo = other.m_textureID = 0;
+            other.m_indexCount = 0;
+        }
+        return *this;
+    }
+
+    GLuint Mesh::getDefaultTextureID() {
+        if (s_defaultTextureID == 0) {
+            int width, height, channels;
+
+            // Укажи здесь путь к твоей дефолтной текстуре в проекте
+            // Например: "assets/textures/default.png" или "assets/default.png"
+            std::string defaultTexPath = "assets/textures/missing_texture.jpg";
+
+            unsigned char* imgData = stbi_load(defaultTexPath.c_str(), &width, &height, &channels, 4);
+
+            glGenTextures(1, &s_defaultTextureID);
+            glBindTexture(GL_TEXTURE_2D, s_defaultTextureID);
+
+            if (imgData) {
+                // Успешно загрузили твой файл текстуры
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData);
+                glGenerateMipmap(GL_TEXTURE_2D);
+
+                // Пиксель-арт фильтрация (чтобы не было размытия)
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+                stbi_image_free(imgData);
+                Logger::info("Mesh: Loaded default texture file: ", defaultTexPath);
+            }
+            else {
+                // Если файл не найден, выводим ошибку и создаем аварийный белый пиксель, чтобы движок не упал
+                Logger::error("Mesh: FAILED to load default texture from '", defaultTexPath, "'. Using white fallback.");
+                unsigned char whitePixel[] = { 255, 255, 255, 255 };
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitePixel);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            }
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }
+        return s_defaultTextureID;
+    }
+
+    void Mesh::upload(const MeshData& data) {
+        release();
+        if (data.vertices.empty() || data.indices.empty()) return;
+        m_baseColor[0] = data.baseColor[0];
+        m_baseColor[1] = data.baseColor[1];
+        m_baseColor[2] = data.baseColor[2];
+        m_hasTexture = false;
+
+        bool textureLoaded = false;
+
+        // 1. Пробуем загрузить встроенную текстуру
+        if (data.hasEmbeddedTexture && !data.embeddedBytes.empty()) {
+            int width, height, channels;
+            unsigned char* imgData = stbi_load_from_memory(
+                data.embeddedBytes.data(), static_cast<int>(data.embeddedBytes.size()),
+                &width, &height, &channels, 4
+            );
+            if (imgData) {
+                glGenTextures(1, &m_textureID);
+                glBindTexture(GL_TEXTURE_2D, m_textureID);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData);
+                glGenerateMipmap(GL_TEXTURE_2D);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                stbi_image_free(imgData);
+                textureLoaded = true;
+            }
+        }
+        // 2. Пробуем загрузить внешнюю текстуру
+        else if (!data.diffuseTexturePath.empty()) {
+            int width, height, channels;
+            unsigned char* imgData = stbi_load(data.diffuseTexturePath.c_str(), &width, &height, &channels, 4);
+            if (imgData) {
+                glGenTextures(1, &m_textureID);
+                glBindTexture(GL_TEXTURE_2D, m_textureID);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData);
+                glGenerateMipmap(GL_TEXTURE_2D);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                stbi_image_free(imgData);
+                textureLoaded = true;
+            }
+        }
+
+        if (textureLoaded) {
+            m_hasTexture = true;
+        }
+        else {
+            m_hasTexture = false;
+        }
+
+
+
+        glGenVertexArrays(1, &m_vao);
+        glGenBuffers(1, &m_vbo);
+        glGenBuffers(1, &m_ebo);
+        glBindVertexArray(m_vao);
+
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+        glBufferData(GL_ARRAY_BUFFER, data.vertices.size() * sizeof(Vertex), data.vertices.data(), GL_STATIC_DRAW);
+
+        const GLsizei stride = sizeof(Vertex);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, position));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, normal));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, uv));
+
+        glEnableVertexAttribArray(3);
+        glVertexAttribIPointer(3, 4, GL_INT, stride, (void*)offsetof(Vertex, boneIDs));
+
+        glEnableVertexAttribArray(4);
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, boneWeights));
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.indices.size() * sizeof(unsigned int), data.indices.data(), GL_STATIC_DRAW);
+
+        glBindVertexArray(0);
+        m_indexCount = static_cast<unsigned int>(data.indices.size());
+    }
+
+    void Mesh::draw() const {
+        if (m_vao == 0) return;
+        glBindVertexArray(m_vao);
+        glDrawElements(GL_TRIANGLES, m_indexCount, GL_UNSIGNED_INT, nullptr);
+        glBindVertexArray(0);
+    }
+
+    void Mesh::release() {
+        if (m_ebo) { glDeleteBuffers(1, &m_ebo); m_ebo = 0; }
+        if (m_vbo) { glDeleteBuffers(1, &m_vbo); m_vbo = 0; }
+        if (m_vao) { glDeleteVertexArrays(1, &m_vao); m_vao = 0; }
+        if (m_textureID) { glDeleteTextures(1, &m_textureID); m_textureID = 0; }
+        m_indexCount = 0;
+    }
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\graphics\post_process.cpp
+============================================================
+#include <engine/graphics/post_process.hpp>
+#include <engine/core/logger.hpp>
+#include <algorithm>
+#include <array>
+#include <cmath>
+
+namespace Solace {
+
+    namespace {
+
+        const std::array<float, 12> kFullscreenTriangle = {
+            // pos.x, pos.y, uv.x, uv.y
+            -1.f, -1.f,  0.f, 0.f,
+             3.f, -1.f,  2.f, 0.f,
+            -1.f,  3.f,  0.f, 2.f,
+        };
+    } // namespace
+
+    PostProcess::PostProcess(const PostSettings& settings)
+        : m_settings(settings)
+    {
+        m_shader = std::make_unique<Shader>("assets/shaders/core/post_vs.glsl",
+            "assets/shaders/core/post_fs.glsl");
+        createFullscreenTriangle();
+        m_internalW = 320;
+        m_internalH = 180;
+        recreateTarget();
+        Logger::info("PostProcess: pixel-art lens ready (target height ",
+            m_settings.targetHeight, ")");
+    }
+
+    PostProcess::~PostProcess() {
+        release();
+        Logger::info("PostProcess: destroyed.");
+    }
+
+    void PostProcess::createFullscreenTriangle() {
+        glGenVertexArrays(1, &m_quadVao);
+        glGenBuffers(1, &m_quadVbo);
+        glBindVertexArray(m_quadVao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_quadVbo);
+        glBufferData(GL_ARRAY_BUFFER,
+            static_cast<GLsizeiptr>(kFullscreenTriangle.size() * sizeof(float)),
+            kFullscreenTriangle.data(), GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE,
+            4 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
+            4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+        glBindVertexArray(0);
+
+        GLint bufferSize = 0;
+        glBindBuffer(GL_ARRAY_BUFFER, m_quadVbo);
+        glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
+        Logger::info("createFullscreenTriangle: buffer size = ", bufferSize);
+    }
+
+    void PostProcess::recreateTarget() {
+        if (m_colorTex) { glDeleteTextures(1, &m_colorTex);       m_colorTex = 0; }
+        if (m_depthRbo) { glDeleteRenderbuffers(1, &m_depthRbo);  m_depthRbo = 0; }
+        if (m_fbo) { glDeleteFramebuffers(1, &m_fbo);        m_fbo = 0; }
+
+        glGenFramebuffers(1, &m_fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+
+        glGenTextures(1, &m_colorTex);
+        glBindTexture(GL_TEXTURE_2D, m_colorTex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_internalW, m_internalH,
+            0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D, m_colorTex, 0);
+
+        glGenRenderbuffers(1, &m_depthRbo);
+        glBindRenderbuffer(GL_RENDERBUFFER, m_depthRbo);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8,
+            m_internalW, m_internalH);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+            GL_RENDERBUFFER, m_depthRbo);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            Logger::error("PostProcess: framebuffer is incomplete!");
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    void PostProcess::beginScene(int windowW, int windowH) {
+        if (windowW != m_lastWindowW || windowH != m_lastWindowH) {
+            m_lastWindowW = windowW;
+            m_lastWindowH = windowH;
+
+
+            const int scale = std::max(1, static_cast<int>(std::lround(
+                static_cast<double>(windowH) / m_settings.targetHeight)));
+
+            const int newW = (windowW + scale - 1) / scale;
+            const int newH = (windowH + scale - 1) / scale;
+
+            if (newW != m_internalW || newH != m_internalH) {
+                m_internalW = newW;
+                m_internalH = newH;
+                recreateTarget();
+                Logger::info("PostProcess: internal resolution ",
+                    m_internalW, "x", m_internalH, " (pixel ", scale, "x", scale, ")");
+            }
+
+            static bool firstFrame = true;
+            if (firstFrame) {
+                Logger::info("PostProcess: first frame rendered! Drawing quad to screen.");
+                firstFrame = false;
+            }
+        }
+
+        if (m_fbo == 0 || m_colorTex == 0) {
+            Logger::error("PostProcess: FBO is not initialized before render!");
+            return;
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+
+        glViewport(0, 0, m_internalW, m_internalH);
+        glEnable(GL_DEPTH_TEST);
+        glClearColor(0.45f, 0.55f, 0.65f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR) Logger::error("beginScene: GL error after clear: ", (int)err);
+    }
+
+    void PostProcess::endScene(int windowW, int windowH) {
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
+        glDisable(GL_CULL_FACE);
+        glViewport(0, 0, windowW, windowH);
+
+        m_shader->bind();
+        m_shader->setInt("u_scene", 0);
+        m_shader->setVec2("u_lowRes",
+
+        static_cast<float>(m_internalW),
+        static_cast<float>(m_internalH));
+
+        m_shader->setFloat("u_paletteBits", m_settings.paletteBits);
+        m_shader->setFloat("u_dither", m_settings.ditherAmount);
+        m_shader->setFloat("u_bloomStrength", m_settings.bloomStrength);
+        m_shader->setFloat("u_bloomThreshold", m_settings.bloomThreshold);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_colorTex);
+
+        glBindVertexArray(m_quadVao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glBindVertexArray(0);
+
+        m_shader->unbind();
+    }
+
+    void PostProcess::release() {
+        if (m_quadVbo) { glDeleteBuffers(1, &m_quadVbo);        m_quadVbo = 0; }
+        if (m_quadVao) { glDeleteVertexArrays(1, &m_quadVao);   m_quadVao = 0; }
+        if (m_depthRbo) { glDeleteRenderbuffers(1, &m_depthRbo); m_depthRbo = 0; }
+        if (m_colorTex) { glDeleteTextures(1, &m_colorTex);      m_colorTex = 0; }
+        if (m_fbo) { glDeleteFramebuffers(1, &m_fbo);       m_fbo = 0; }
+    }
+
+    void PostProcess::applySettings(const PostSettings& newSettings) {
+        m_settings = newSettings;
+        m_lastWindowW = -1;
+        m_lastWindowH = -1;
+        Logger::info("PostProcess: settings applied. Target height: ", m_settings.targetHeight);
+    }
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\graphics\shader.cpp
+============================================================
+#include <engine/graphics/shader.hpp>
+#include <engine/core/logger.hpp>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <filesystem>
+
+namespace Solace {
+    Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath) {
+        std::string vertexCode = readFile(vertexPath);
+        std::string fragmentCode = readFile(fragmentPath);
+
+        GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexCode);
+        GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentCode);
+
+        m_rendererID = glCreateProgram();
+        glAttachShader(m_rendererID, vertexShader);
+        glAttachShader(m_rendererID, fragmentShader);
+        glLinkProgram(m_rendererID);
+
+        GLint success;
+        glGetProgramiv(m_rendererID, GL_LINK_STATUS, &success);
+        if (!success) {
+            GLchar infoLog[512];
+            glGetProgramInfoLog(m_rendererID, 512, NULL, infoLog);
+            Logger::error("Failed to link shader program! Error: ", infoLog);
+        }
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+
+        Logger::info("Shader program successfully created (ID: ", m_rendererID, ")");
+    }
+
+    Shader::~Shader() {
+        glDeleteProgram(m_rendererID);
+    }
+
+    void Shader::bind() const {
+        glUseProgram(m_rendererID);
+    }
+
+    void Shader::unbind() const {
+        glUseProgram(0);
+    }
+
+    void Shader::setInt(const std::string& name, int value) const {
+        glUniform1i(glGetUniformLocation(m_rendererID, name.c_str()), value);
+    }
+
+    void Shader::setFloat(const std::string& name, float value) const {
+        glUniform1f(glGetUniformLocation(m_rendererID, name.c_str()), value);
+    }
+
+    void Shader::setVec3(const std::string& name, float x, float y, float z) const {
+        glUniform3f(glGetUniformLocation(m_rendererID, name.c_str()), x, y, z);
+    }
+
+    void Shader::setVec4(const std::string& name, float x, float y, float z, float w) const {
+        glUniform4f(glGetUniformLocation(m_rendererID, name.c_str()), x, y, z, w);
+    }
+
+    void Shader::setVec2(const std::string& name, float x, float y) const {
+        glUniform2f(glGetUniformLocation(m_rendererID, name.c_str()), x, y);
+    }
+
+    void Shader::setMat4(const std::string& name, const float* columnMajor4x4) const {
+        glUniformMatrix4fv(glGetUniformLocation(m_rendererID, name.c_str()),
+            1, GL_FALSE, columnMajor4x4);
+    }
+
+    std::string Shader::readFile(const std::string& filepath) {
+        namespace fs = std::filesystem;
+
+        std::vector<fs::path> candidatePaths = {
+            filepath,
+            fs::path("..") / filepath,
+            fs::path("../..") / filepath,
+            fs::path("../../..") / filepath,
+            fs::path("../../../..") / filepath
+        };
+
+        for (const auto& candidate : candidatePaths) {
+            if (fs::exists(candidate) && fs::is_regular_file(candidate)) {
+                std::ifstream file;
+                file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+                try {
+                    file.open(candidate);
+                    std::stringstream stream;
+                    stream << file.rdbuf();
+                    file.close();
+                    Logger::debug("Shader successfully loaded from: ", fs::absolute(candidate).string());
+                    return stream.str();
+                }
+                catch (std::ifstream::failure& e) {
+                    Logger::warning("Found shader at ", candidate.string(), ", but failed to read it.");
+                }
+            }
+        }
+        Logger::error("==================================================");
+        Logger::error("FATAL: Failed to find shader file: ", filepath);
+        Logger::error("Current Working Directory (CWD): ", fs::current_path().string());
+        Logger::error("Check your Visual Studio Working Directory settings!");
+        Logger::error("==================================================");
+
+        throw std::runtime_error("Shader file not found: " + filepath);
+    }
+
+    GLuint Shader::compileShader(GLenum type, const std::string& source) {
+        GLuint shader = glCreateShader(type);
+
+        const char* src = source.c_str();
+        glShaderSource(shader, 1, &src, nullptr);
+
+        glCompileShader(shader);
+
+        GLint success;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            GLchar infoLog[512];
+            glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+            std::string typeStr = (type == GL_VERTEX_SHADER) ? "VERTEX" : "FRAGMENT";
+            Logger::error("Failed to compile ", typeStr, " shader! Error: ", infoLog);
+        }
+
+        return shader;
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\systems\input_system.cpp
+============================================================
+#include <engine/systems/input_system.hpp>
+#include <engine/core/logger.hpp>
+#include <algorithm>
+#include <iostream>
+
+namespace Solace {
+    std::bitset<(size_t)GameAction::Count> InputSystem::s_actionStates;
+    std::bitset<(size_t)GameAction::Count> InputSystem::s_actionPrevStates;
+    float InputSystem::s_axisValues[(size_t)GameAxis::Count] = { 0.0f };
+    float InputSystem::s_mouseX = 0.0f;
+    float InputSystem::s_mouseY = 0.0f;
+
+    std::unordered_map<SDL_Scancode, GameAction> InputSystem::s_keyToActionMap;
+    std::unordered_map<Uint8, GameAction> InputSystem::s_mouseButtonToActionMap;
+
+    void InputSystem::init() {
+        bindKeyToAction(GameAction::Dash, SDL_SCANCODE_SPACE);
+        bindKeyToAction(GameAction::FlyDown, SDL_SCANCODE_LSHIFT);
+        bindKeyToAction(GameAction::AttackPrimary, SDL_SCANCODE_J);
+        bindKeyToAction(GameAction::AttackHeavy, SDL_SCANCODE_K);
+        bindKeyToAction(GameAction::Interact, SDL_SCANCODE_E);
+        bindKeyToAction(GameAction::Pause, SDL_SCANCODE_ESCAPE);
+
+        bindKeyToAction(GameAction::ToggleFullscreen, SDL_SCANCODE_F11);
+
+        bindMouseButtonToAction(GameAction::AttackPrimary, SDL_BUTTON_LEFT);
+        bindMouseButtonToAction(GameAction::AttackHeavy, SDL_BUTTON_RIGHT);
+
+        Logger::info("InputSystem initialized successfully with default action mappings.");
+    }
+
+    void InputSystem::update() {
+        s_actionPrevStates = s_actionStates;
+
+        s_axisValues[(size_t)GameAxis::MoveX] = 0.0f;
+        s_axisValues[(size_t)GameAxis::MoveY] = 0.0f;
+        s_axisValues[(size_t)GameAxis::FlyY] = 0.0f;
+
+        s_axisValues[(size_t)GameAxis::MouseDeltaX] = 0.0f;
+        s_axisValues[(size_t)GameAxis::MouseDeltaY] = 0.0f;
+
+        const bool* state = SDL_GetKeyboardState(nullptr);
+        if (state[SDL_SCANCODE_A] || state[SDL_SCANCODE_LEFT])  s_axisValues[(size_t)GameAxis::MoveX] -= 1.0f;
+        if (state[SDL_SCANCODE_D] || state[SDL_SCANCODE_RIGHT]) s_axisValues[(size_t)GameAxis::MoveX] += 1.0f;
+        if (state[SDL_SCANCODE_S] || state[SDL_SCANCODE_DOWN])  s_axisValues[(size_t)GameAxis::MoveY] -= 1.0f;
+        if (state[SDL_SCANCODE_W] || state[SDL_SCANCODE_UP])    s_axisValues[(size_t)GameAxis::MoveY] += 1.0f;
+
+        if (state[SDL_SCANCODE_SPACE])  s_axisValues[(size_t)GameAxis::FlyY] += 1.0f;
+        if (state[SDL_SCANCODE_LSHIFT]) s_axisValues[(size_t)GameAxis::FlyY] -= 1.0f;
+    }
+
+    void InputSystem::handleEvent(const SDL_Event& event) {
+        if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+            auto it = s_keyToActionMap.find(event.key.scancode);
+            if (it != s_keyToActionMap.end()) {
+                setActionState(it->second, true);
+            }
+        }
+        else if (event.type == SDL_EVENT_KEY_UP) {
+            auto it = s_keyToActionMap.find(event.key.scancode);
+            if (it != s_keyToActionMap.end()) {
+                setActionState(it->second, false);
+            }
+        }
+        else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            auto it = s_mouseButtonToActionMap.find(event.button.button);
+            if (it != s_mouseButtonToActionMap.end()) {
+                setActionState(it->second, true);
+            }
+        }
+        else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+            auto it = s_mouseButtonToActionMap.find(event.button.button);
+            if (it != s_mouseButtonToActionMap.end()) {
+                setActionState(it->second, false);
+            }
+        }
+        else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+            s_mouseX = event.motion.x;
+            s_mouseY = event.motion.y;
+
+            s_axisValues[(size_t)GameAxis::AimX] = s_mouseX;
+            s_axisValues[(size_t)GameAxis::AimY] = s_mouseY;
+
+            s_axisValues[(size_t)GameAxis::MouseDeltaX] = event.motion.xrel;
+            s_axisValues[(size_t)GameAxis::MouseDeltaY] = event.motion.yrel;
+        }
+    }
+
+    void InputSystem::setActionState(GameAction action, bool pressed) {
+        s_actionStates.set((size_t)action, pressed);
+    }
+
+    bool InputSystem::isActionDown(GameAction action) {
+        return s_actionStates.test((size_t)action);
+    }
+
+    bool InputSystem::isActionJustPressed(GameAction action) {
+        return s_actionStates.test((size_t)action) && !s_actionPrevStates.test((size_t)action);
+    }
+
+    bool InputSystem::isActionJustReleased(GameAction action) {
+        return !s_actionStates.test((size_t)action) && s_actionPrevStates.test((size_t)action);
+    }
+
+    float InputSystem::getAxis(GameAxis axis) {
+        return s_axisValues[(size_t)axis];
+    }
+
+    void InputSystem::getMousePosition(float& outX, float& outY) {
+        outX = s_mouseX;
+        outY = s_mouseY;
+    }
+
+    void InputSystem::bindKeyToAction(GameAction action, SDL_Scancode scancode) {
+        s_keyToActionMap[scancode] = action;
+    }
+
+    void InputSystem::bindMouseButtonToAction(GameAction action, Uint8 button) {
+        s_mouseButtonToActionMap[button] = action;
+    }
+
+} // namespace Solace
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\utils\math_utils.cpp
+============================================================
+#include <engine/utils/math_utils.hpp>
+#include <cmath>
+
+namespace Solace {
+
+    Mat4 mat4Identity() {
+        return {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
+        };
+    }
+
+    Mat4 mat4Translate(float x, float y, float z) {
+        Mat4 m = mat4Identity();
+        m[12] = x;
+        m[13] = y;
+        m[14] = z;
+        return m;
+    }
+
+    Mat4 mat4Scale(float x, float y, float z) {
+        Mat4 m = { 0 };
+        m[0] = x;
+        m[5] = y;
+        m[10] = z;
+        m[15] = 1.0f;
+        return m;
+    }
+
+    Mat4 mat4Multiply(const Mat4& a, const Mat4& b) {
+        Mat4 r{};
+        for (int c = 0; c < 4; ++c) {
+            for (int row = 0; row < 4; ++row) {
+                r[c * 4 + row] =
+                    a[0 * 4 + row] * b[c * 4 + 0] +
+                    a[1 * 4 + row] * b[c * 4 + 1] +
+                    a[2 * 4 + row] * b[c * 4 + 2] +
+                    a[3 * 4 + row] * b[c * 4 + 3];
+            }
+        }
+        return r;
+    }
+
+    Mat4 mat4Perspective(float fovYRad, float aspect, float nearZ, float farZ) {
+        const float t = 1.0f / std::tan(fovYRad * 0.5f);
+        Mat4 m{};
+        m[0] = t / aspect;
+        m[5] = t;
+        m[10] = (farZ + nearZ) / (nearZ - farZ);
+        m[11] = -1.0f;
+        m[14] = (2.0f * farZ * nearZ) / (nearZ - farZ);
+        return m;
+    }
+
+    Mat4 mat4LookAt(float ex, float ey, float ez,
+        float cx, float cy, float cz,
+        float ux, float uy, float uz)
+    {
+        // (Forward / Z-axis)
+        float zx = ex - cx, zy = ey - cy, zz = ez - cz;
+        float len = std::sqrt(zx * zx + zy * zy + zz * zz);
+        if (len > 0.0f) { zx /= len; zy /= len; zz /= len; }
+
+        // (Right / X-axis) = Up x Forward
+        float xx = uy * zz - uz * zy;
+        float xy = uz * zx - ux * zz;
+        float xz = ux * zy - uy * zx;
+        len = std::sqrt(xx * xx + xy * xy + xz * xz);
+        if (len > 0.0f) { xx /= len; xy /= len; xz /= len; }
+
+        // (True Up / Y-axis) = Forward x Right
+        float yx = zy * xz - zz * xy;
+        float yy = zz * xx - zx * xz;
+        float yz = zx * xy - zy * xx;
+
+        Mat4 m{};
+        // (X-axis / Right)
+        m[0] = xx;  m[1] = yx;  m[2] = zx;  m[3] = 0.0f;
+        // (Y-axis / Up)
+        m[4] = xy;  m[5] = yy;  m[6] = zy;  m[7] = 0.0f;
+        // (Z-axis / Forward)
+        m[8] = xz;  m[9] = yz;  m[10] = zz; m[11] = 0.0f;
+        // (Position / Translation)
+        m[12] = -(xx * ex + xy * ey + xz * ez);
+        m[13] = -(yx * ex + yy * ey + yz * ez);
+        m[14] = -(zx * ex + zy * ey + zz * ez);
+        m[15] = 1.0f;
+
+        return m;
+    }
+
+} // namespace Solace 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\engine\src\utils\stb_image_impl.cpp
+============================================================
+#define STB_IMAGE_IMPLEMENTATION
+//#define STBI_ONLY_PNG // (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
+#include <stb_image.h>
+// stbi_set_flip_vertically_on_load(true); 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\include\game\core\game.hpp
+============================================================
+#pragma once
+
+#include <engine/core/engine.hpp>
+#include <game/entities/player.hpp>
+#include <engine/graphics/shader.hpp>
+#include <engine/utils/math_utils.hpp>
+#include <game/world/world_gen.hpp>
+#include <engine/core/graphics_settings.hpp>
+#include <memory>
+#include <engine/graphics/camera.hpp>
+
+namespace App {
+    class Game : public Solace::Engine {
+    public:
+        Game();
+        ~Game();
+
+        void onUpdate(float deltaTime) override;
+        void onRender() override;
+        void onEvent(const SDL_Event& event) override;
+
+    private:
+        std::unique_ptr<Solace::Shader> m_worldShader;
+        std::unique_ptr<App::WorldGen> m_worldGen;
+        std::unique_ptr<Player> m_player;
+        App::Camera m_camera;
+
+        Solace::Mat4 m_viewMatrix;
+        Solace::Mat4 m_projMatrix;
+
+        float m_camX = 0.0f;
+        float m_camY = 0.0f;
+        float m_camZ = 0.0f;
+
+        Solace::GraphicsSettings m_settings;
+
+        CameraMode m_cameraMode = CameraMode::Default;
+
+        void reloadSettings();
+        void renderUI();
+    };
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\include\game\entities\player.hpp
+============================================================
+#pragma once
+
+#include <memory>
+#include <string>
+#include <game/utils/player_model.hpp>
+#include <engine/graphics/shader.hpp>
+#include <engine/utils/math_utils.hpp>
+#include <engine/graphics/camera.hpp>
+
+namespace App { enum class CameraMode; }
+
+namespace App {
+
+    class PlayerMovementSystem;
+
+    class Player {
+    public:
+        Player(float startX, float startY);
+        Player(float startX, float startY, float startZ);
+        ~Player() = default;
+
+        void update(float deltaTime, CameraMode camMode);
+        void render(Solace::Shader& shader, const Solace::Mat4& viewMatrix, const Solace::Mat4& projMatrix);
+
+        void changeSkin(const std::string& modelPath) {
+            if (m_playerModel) {
+                m_playerModel->swapModel(modelPath);
+            }
+        }
+
+        float getX() const { return m_posX; }
+        float getY() const { return m_posY; }
+        float getZ() const { return m_posZ; }
+        float getYaw() const { return m_yaw; }
+        float getPitch() const { return m_pitch; }
+
+
+
+    private:
+        friend class PlayerMovementSystem;
+
+        float m_posX, m_posY, m_posZ;
+        float m_speed;
+        float m_yaw, m_pitch;
+        float m_mouseSensitivity;
+        float m_stamina;
+        float m_maxStamina;
+        float m_staminaRegenRate;
+        bool m_isDashing;
+        float m_dashTimer;
+        float m_dashDuration;
+        float m_dashCooldown;
+        float m_dashCooldownTimer;
+
+        std::unique_ptr<PlayerModel> m_playerModel;
+    };
+
+} // namespace App 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\include\game\systems\player_movement_system.hpp
+============================================================
+#pragma once
+#include <game/entities/player.hpp>
+#include <engine/graphics/camera.hpp>
+
+namespace App {
+
+    class PlayerMovementSystem {
+    public:
+        static void update(Player& player, float deltaTime, CameraMode camMode);
+    };
+
+} // namespace App 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\include\game\utils\player_model.hpp
+============================================================
+#pragma once
+
+#include <engine/animations/animator.hpp>
+#include <engine/graphics/shader.hpp>
+#include <engine/graphics/mesh.hpp>
+#include <engine/utils/math_utils.hpp>
+#include <memory>
+#include <vector>
+#include <string>
+
+namespace App {
+
+    class PlayerModel {
+    public:
+        PlayerModel();
+        ~PlayerModel();
+
+        void loadModel(const std::string& filePath);
+        void render(Solace::Shader& shader, const Solace::Mat4& viewMatrix, const Solace::Mat4& projMatrix,
+            float worldX, float worldY, float worldZ, float yaw);
+        void update(float deltaTime);
+
+        void setScale(float scale) { m_scale = scale; }
+        float getScale() const { return m_scale; }
+        void swapModel(const std::string& newFilePath);
+
+        const ozz::animation::Skeleton& GetSkeleton() const;
+
+    private:
+        std::string m_currentModelPath;
+        float m_scale;
+        std::vector<std::unique_ptr<Solace::Mesh>> m_meshes;
+
+        GLuint m_boneSSBO = 0;
+
+        std::unique_ptr<Solace::Animator> m_animator;
+    };
+
+} // namespace App 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\include\game\world\world_gen.hpp
+============================================================
+#pragma once
+
+#include <engine/graphics/mesh.hpp>
+#include <engine/graphics/shader.hpp>
+#include <engine/utils/math_utils.hpp>
+#include <memory>
+
+namespace App {
+
+    struct Vec3 {
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+    };
+
+    class WorldGen {
+    public:
+        WorldGen();
+
+        void loadAssets();
+
+        void render(const Solace::Shader& shader,
+            Solace::Mat4 view,
+            Solace::Mat4 proj) const;
+
+        static Solace::MeshData buildPillarData(float radius, float height, int segments);
+
+    private:
+        std::unique_ptr<Solace::Mesh> m_monolith;
+        std::unique_ptr<Solace::Mesh> m_pillar;
+
+        Vec3 m_pillarPos = { 0.0f, 0.0f, 0.0f };
+        Vec3 m_monolithPos = { 3.0f, 0.0f, 0.0f };
+    };
+
+} // namespace App 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\src\main.cpp
+============================================================
+#include <game/core/game.hpp>
+#include <engine/core/logger.hpp>
+#include <filesystem>
+
+int main(int argc, char* argv[]) {
+    try {
+        App::Game game;
+        game.run();
+    }
+    catch (const std::exception& e) {
+        Solace::Logger::error("Fatal Error: ", e.what());
+        return -1;
+    }
+
+    Solace::Logger::info("Game exited successfully.");
+    return 0;
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\src\core\game.cpp
+============================================================
+#include <imgui.h>
+#include <backends/imgui_impl_sdl3.h>
+#include <backends/imgui_impl_opengl3.h>
+#include <engine/debug/fps.hpp>
+
+#include <game/core/game.hpp>
+#include <engine/core/logger.hpp>
+#include <engine/debug/debug_overlay.hpp>
+#include <glad/glad.h>
+#include <engine/systems/input_system.hpp>
+#include <cmath>
+#include <engine/core/settings_manager.hpp>
+#include <engine/graphics/camera.hpp>
+
+
+namespace App {
+
+    Game::Game() {
+        Solace::Logger::info("Game instance successfully created!");
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", 16.0f);
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        ImGui::StyleColorsDark();
+
+        ImGui_ImplSDL3_InitForOpenGL(getWindow().getSDLWindow(), getWindow().GetGLContext());
+        ImGui_ImplOpenGL3_Init("#version 430 core");
+
+        Solace::DebugOverlay::init();
+
+        setUIRenderCallback([this]() { renderUI(); });
+        Solace::DebugOverlay::registerCommand("fps", [](const std::vector<std::string>& args) {
+            if (!args.empty()) {
+                int val = std::stoi(args[0]);
+                Solace::Fps::setVisible(val > 0);
+                Solace::DebugOverlay::addLog(val > 0 ? "FPS counter enabled." : "FPS counter disabled.");
+            }
+            else {
+                Solace::DebugOverlay::addLog(Solace::Fps::isVisible() ? "FPS counter is ON" : "FPS counter is OFF");
+            }
+            });
+
+        Solace::DebugOverlay::registerCommand("mode", [this](const std::vector<std::string>& args) {
+            if (!args.empty()) {
+                if (args[0] == "noclip") {
+                    m_cameraMode = CameraMode::Noclip;
+                    Solace::Logger::info(">>> Switched to DEV MODE (Free-Fly Camera)");
+                }
+                else if (args[0] == "default") {
+                    m_cameraMode = CameraMode::Default;
+                    Solace::Logger::info(">>> Switched to GAMEPLAY 2.5D MODE (Fixed ARPG Camera)");
+                }
+            }
+            });
+
+        m_worldShader = std::make_unique<Solace::Shader>(
+            "assets/shaders/core/base_vs.glsl",
+            "assets/shaders/core/base_fs.glsl"
+        );
+
+        m_worldGen = std::make_unique<App::WorldGen>();
+
+        m_settings = Solace::SettingsManager::load();
+
+        Solace::PostSettings ppSettings;
+        ppSettings.targetHeight = m_settings.postProcess.targetHeight;
+        ppSettings.paletteBits = m_settings.postProcess.paletteBits;
+        ppSettings.ditherAmount = m_settings.postProcess.ditherAmount;
+        ppSettings.bloomStrength = m_settings.postProcess.bloomStrength;
+        ppSettings.bloomThreshold = m_settings.postProcess.bloomThreshold;
+
+        getPostProcess()->applySettings(ppSettings);
+
+        float aspect = static_cast<float>(getWindow().width()) / static_cast<float>(getWindow().height());
+        m_camera.setAspect(aspect);
+
+        m_player = std::make_unique<Player>(0.0f, 0.0f, 0.0f);
+    }
+
+    Game::~Game() {
+        Solace::DebugOverlay::shutdown();
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
+        Solace::Logger::info("Game destroyed.");
+    }
+
+    void Game::reloadSettings() {
+        Solace::Logger::info("Reloading graphics settings from JSON...");
+        m_settings = Solace::SettingsManager::load();
+
+        Solace::PostSettings ppSettings;
+        ppSettings.targetHeight = m_settings.postProcess.targetHeight;
+        ppSettings.paletteBits = m_settings.postProcess.paletteBits;
+        ppSettings.ditherAmount = m_settings.postProcess.ditherAmount;
+        ppSettings.bloomStrength = m_settings.postProcess.bloomStrength;
+        ppSettings.bloomThreshold = m_settings.postProcess.bloomThreshold;
+
+        getPostProcess()->applySettings(ppSettings);
+        Solace::Logger::info("Graphics settings successfully reloaded!");
+    }
+
+    void Game::onUpdate(float deltaTime) {
+        const bool* keyStates = SDL_GetKeyboardState(nullptr);
+        static bool f5PressedLastFrame = false;
+        if (keyStates[SDL_SCANCODE_F5] && !f5PressedLastFrame) {
+            reloadSettings();
+        }
+        f5PressedLastFrame = keyStates[SDL_SCANCODE_F5];
+
+        if (m_player) {
+            m_player->update(deltaTime, m_cameraMode);
+
+            float px = m_player->getX();
+            float py = m_player->getY();
+            float pz = m_player->getZ();
+
+            m_camera.update(deltaTime, m_cameraMode, px, py, pz,
+                m_player->getYaw(), m_player->getPitch());
+        }
+    }
+
+    void Game::onRender() {
+        glEnable(GL_DEPTH_TEST);
+        //glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+
+        glClearColor(m_settings.clearColor[0], m_settings.clearColor[1], m_settings.clearColor[2], 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        Solace::Mat4 viewMatrix = m_camera.getViewMatrix();
+        Solace::Mat4 projMatrix = m_camera.getProjMatrix();
+
+        if (m_worldShader) {
+            m_worldShader->bind();
+
+            m_worldShader->setVec3("u_sunDir", m_settings.lighting.sunDir[0], m_settings.lighting.sunDir[1], m_settings.lighting.sunDir[2]);
+            m_worldShader->setVec3("u_sunColor", m_settings.lighting.sunColor[0], m_settings.lighting.sunColor[1], m_settings.lighting.sunColor[2]);
+            m_worldShader->setVec3("u_skyColor", m_settings.lighting.skyColor[0], m_settings.lighting.skyColor[1], m_settings.lighting.skyColor[2]);
+            m_worldShader->setVec3("u_groundColor", m_settings.lighting.groundColor[0], m_settings.lighting.groundColor[1], m_settings.lighting.groundColor[2]);
+
+            m_worldShader->setFloat("u_toonMidStep", m_settings.lighting.toonMidStep);
+            m_worldShader->setFloat("u_toonShadowStep", m_settings.lighting.toonShadowStep);
+
+            m_worldShader->setVec3("u_rimColor", m_settings.lighting.rimColor[0], m_settings.lighting.rimColor[1], m_settings.lighting.rimColor[2]);
+            m_worldShader->setFloat("u_rimPower", m_settings.lighting.rimPower);
+
+            if (m_player) {
+                m_worldShader->setVec3("u_viewPos", m_player->getX(), m_player->getY() + 6.0f, m_player->getZ() + 8.0f);
+            }
+
+            m_worldShader->unbind();
+        }
+
+        if (m_worldGen && m_worldShader) {
+            m_worldGen->render(*m_worldShader, viewMatrix, projMatrix);
+        }
+        else {
+            Solace::Logger::error("Game: worldGen or shader is null!");
+        }
+
+        if (m_player && m_worldShader && m_cameraMode == CameraMode::Default) {
+            m_player->render(*m_worldShader, viewMatrix, projMatrix);
+        }
+
+        static bool errLogged = false;
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR && !errLogged) {
+            Solace::Logger::error("OpenGL error after render, code: ", static_cast<int>(err));
+            errLogged = true;
+        }
+    }
+
+    void Game::onEvent(const SDL_Event& event) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
+
+        if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_GRAVE) {
+            Solace::DebugOverlay::toggle();
+            SDL_SetWindowRelativeMouseMode(
+                getWindow().getSDLWindow(),
+                !Solace::DebugOverlay::isOpen()
+            );
+        }
+    }
+
+    void Game::renderUI() {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+
+        Solace::DebugOverlay::render();
+
+        if (Solace::Fps::isVisible()) {
+            ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
+            ImGui::Begin("Performance", nullptr,
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+                ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
+            ImGui::Text("FPS: %.1f (%.2f ms)",
+                Solace::Fps::getFPS(),
+                1000.0f / (Solace::Fps::getFPS() > 0.0f ? Solace::Fps::getFPS() : 1.0f));
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\src\entities\player.cpp
+============================================================
+#include <game/entities/player.hpp>
+#include <game/systems/player_movement_system.hpp>
+#include <engine/core/logger.hpp>
+
+namespace App {
+
+    Player::Player(float startX, float startY)
+        : Player(startX, 0.0f, startY) {
+    }
+
+    Player::Player(float startX, float startY, float startZ)
+        : m_posX(startX), m_posY(startY), m_posZ(startZ),
+        m_speed(5.0f), m_yaw(-90.0f), m_pitch(0.0f), m_mouseSensitivity(0.15f),
+        m_maxStamina(100.0f), m_stamina(100.0f), m_staminaRegenRate(25.0f),
+        m_isDashing(false), m_dashTimer(0.0f), m_dashDuration(0.25f),
+        m_dashCooldown(0.5f), m_dashCooldownTimer(0.0f),
+        m_playerModel(std::make_unique<PlayerModel>())
+    {
+        Solace::Logger::info("Player spawned at X=", m_posX, ", Y=", m_posY, ", Z=", m_posZ);
+        m_playerModel->loadModel("assets/models/runModel.glb");
+    }
+
+    void Player::update(float deltaTime, CameraMode camMode) {
+        if (m_playerModel) {
+            m_playerModel->update(deltaTime);
+        }
+        PlayerMovementSystem::update(*this, deltaTime, camMode);
+    }
+
+    void Player::render(Solace::Shader& shader, const Solace::Mat4& viewMatrix, const Solace::Mat4& projMatrix) {
+        if (m_playerModel) {
+            m_playerModel->render(shader, viewMatrix, projMatrix, m_posX, m_posY, m_posZ, m_yaw);
+        }
+    }
+
+} // namespace App 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\src\systems\player_movement_system.cpp
+============================================================
+#include <game/systems/player_movement_system.hpp>
+#include <engine/systems/input_system.hpp>
+#include <cmath>
+#include <algorithm>
+
+namespace App {
+
+    void PlayerMovementSystem::update(Player& player, float deltaTime, CameraMode camMode) {
+        if (!player.m_isDashing && player.m_stamina < player.m_maxStamina) {
+            player.m_stamina += player.m_staminaRegenRate * deltaTime;
+            if (player.m_stamina > player.m_maxStamina) player.m_stamina = player.m_maxStamina;
+        }
+
+        if (player.m_dashCooldownTimer > 0.0f) player.m_dashCooldownTimer -= deltaTime;
+        if (player.m_isDashing) {
+            player.m_dashTimer -= deltaTime;
+            if (player.m_dashTimer <= 0.0f) player.m_isDashing = false;
+        }
+
+        if (Solace::InputSystem::isActionJustPressed(Solace::GameAction::Dash)
+            && player.m_stamina >= 25.0f && !player.m_isDashing && player.m_dashCooldownTimer <= 0.0f)
+        {
+            player.m_isDashing = true;
+            player.m_dashTimer = player.m_dashDuration;
+            player.m_stamina -= 25.0f;
+            player.m_dashCooldownTimer = player.m_dashCooldown;
+        }
+
+        float moveX = Solace::InputSystem::getAxis(Solace::GameAxis::MoveX);
+        float moveZ = Solace::InputSystem::getAxis(Solace::GameAxis::MoveY);
+
+        float length = std::sqrt(moveX * moveX + moveZ * moveZ);
+        if (length > 1.0f) {
+            moveX /= length;
+            moveZ /= length;
+        }
+
+        float currentSpeed = player.m_speed;
+        if (player.m_isDashing) {
+            currentSpeed *= 3.5f;
+        }
+
+        if (camMode == CameraMode::Noclip) {
+            float deltaX = Solace::InputSystem::getAxis(Solace::GameAxis::MouseDeltaX);
+            float deltaY = Solace::InputSystem::getAxis(Solace::GameAxis::MouseDeltaY);
+            float flyY = Solace::InputSystem::getAxis(Solace::GameAxis::FlyY);
+
+            if (deltaX != 0.0f || deltaY != 0.0f) {
+                player.m_yaw += deltaX * player.m_mouseSensitivity;
+                player.m_pitch -= deltaY * player.m_mouseSensitivity;
+                player.m_pitch = std::clamp(player.m_pitch, -89.0f, 89.0f);
+            }
+
+            float yawRad = player.m_yaw * 3.14159265f / 180.0f;
+            float pitchRad = player.m_pitch * 3.14159265f / 180.0f;
+
+            float forwardX = std::cos(yawRad) * std::cos(pitchRad);
+            float forwardY = std::sin(pitchRad);
+            float forwardZ = std::sin(yawRad) * std::cos(pitchRad);
+
+            float rightX = -std::sin(yawRad);
+            float rightZ = std::cos(yawRad);
+
+            player.m_posX += (forwardX * moveZ + rightX * moveX) * currentSpeed * deltaTime;
+            player.m_posY += (forwardY * moveZ + flyY) * currentSpeed * deltaTime;
+            player.m_posZ += (forwardZ * moveZ + rightZ * moveX) * currentSpeed * deltaTime;
+        }
+        else {
+            player.m_posX += moveX * currentSpeed * deltaTime;
+            player.m_posZ -= moveZ * currentSpeed * deltaTime;
+        }
+    }
+
+} // namespace App 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\src\utils\player_model.cpp
+============================================================
+#include <game/utils/player_model.hpp>
+#include <engine/core/logger.hpp>
+#include <engine/assets/model_loader.hpp>
+#include <glad/glad.h>
+#include <algorithm>
+
+#include <ozz/base/maths/simd_math.h>
+#include <ozz/base/maths/soa_transform.h>
+
+namespace App {
+
+    PlayerModel::PlayerModel()
+        : m_scale(1.0f)
+    {
+        glGenBuffers(1, &m_boneSSBO);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_boneSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, 500 * sizeof(ozz::math::Float4x4), nullptr, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    }
+
+    PlayerModel::~PlayerModel() {
+        if (m_boneSSBO) {
+            glDeleteBuffers(1, &m_boneSSBO);
+            m_boneSSBO = 0;
+        }
+    }
+
+    void PlayerModel::loadModel(const std::string& filePath) {
+        m_currentModelPath = filePath;
+        m_meshes.clear();
+
+        m_animator = std::make_unique<Solace::Animator>();
+        if (!m_animator->loadSkeleton("assets/animations/player_skeleton.ozz")) {
+            Solace::Logger::error("PlayerModel: skeleton NOT loaded");
+        }
+        if (!m_animator->loadAnimation("assets/animations/player_run.ozz")) {
+            Solace::Logger::error("PlayerModel: animation NOT loaded");
+        }
+
+        try {
+            auto meshesData = Solace::ModelLoader::loadFromFile(filePath);
+            for (auto& data : meshesData) {
+                auto cleanBoneName = [](std::string name) {
+                    size_t colon = name.find(':');
+                    if (colon != std::string::npos) name = name.substr(colon + 1);
+
+                    size_t pipe = name.rfind('|');
+                    if (pipe != std::string::npos) name = name.substr(pipe + 1);
+                    if (name.size() > 3 && name[name.size() - 4] == '_' &&
+                        isdigit(name[name.size() - 3]) && isdigit(name[name.size() - 2]) &&
+                        isdigit(name[name.size() - 1])) {
+                        name = name.substr(0, name.size() - 4);
+                    }
+                    else if (name.size() > 2 && name[name.size() - 3] == '_' &&
+                        isdigit(name[name.size() - 2]) && isdigit(name[name.size() - 1])) {
+                        name = name.substr(0, name.size() - 3);
+                    }
+
+                    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+                    return name;
+                    };
+
+                if (!data.boneNames.empty() && m_animator) {
+                    const auto& skeleton = m_animator->GetSkeleton();
+                    auto jointNames = skeleton.joint_names();
+
+                    Solace::Logger::info("=== Assimp bones (first 5) ===");
+                    for (size_t i = 0; i < std::min<size_t>(5, data.boneNames.size()); i++) {
+                        Solace::Logger::info("  [", i, "] '", data.boneNames[i], "' -> cleaned '", cleanBoneName(data.boneNames[i]), "'");
+                    }
+
+                    Solace::Logger::info("=== ozz joints (first 5) ===");
+                    for (size_t i = 0; i < std::min<size_t>(5, jointNames.size()); i++) {
+                        if (jointNames[i]) {
+                            Solace::Logger::info("  [", i, "] '", jointNames[i], "' -> cleaned '", cleanBoneName(jointNames[i]), "'");
+                        }
+                    }
+
+                    int mappedWeights = 0;
+                    int unmappedWeights = 0;
+                    int fullyMappedVerts = 0;
+                    int fullyUnmappedVerts = 0;
+
+                    for (auto& v : data.vertices) {
+                        float totalW = 0.0f;
+                        bool anyMapped = false;
+
+                        for (int s = 0; s < 4; s++) {
+                            if (v.boneWeights[s] > 0.0f) {
+                                int assimpIdx = v.boneIDs[s];
+                                if (assimpIdx >= 0 && assimpIdx < (int)data.boneNames.size()) {
+                                    std::string cleanAssimpName = cleanBoneName(data.boneNames[assimpIdx]);
+                                    int ozzIdx = -1;
+
+                                    for (size_t j = 0; j < jointNames.size(); j++) {
+                                        if (jointNames[j] != nullptr) {
+                                            std::string cleanOzzName = cleanBoneName(jointNames[j]);
+                                            if (cleanOzzName == cleanAssimpName) {
+                                                ozzIdx = (int)j;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (ozzIdx >= 0) {
+                                        v.boneIDs[s] = ozzIdx;
+                                        totalW += v.boneWeights[s];
+                                        mappedWeights++;
+                                        anyMapped = true;
+                                    }
+                                    else {
+                                        if (unmappedWeights < 10) {
+                                            Solace::Logger::warning("Unmapped bone: '", data.boneNames[assimpIdx], "' (cleaned: '", cleanAssimpName, "')");
+                                        }
+                                        v.boneWeights[s] = 0.0f;
+                                        v.boneIDs[s] = 0;
+                                        unmappedWeights++;
+                                    }
+                                }
+                                else {
+                                    v.boneWeights[s] = 0.0f;
+                                    v.boneIDs[s] = 0;
+                                    unmappedWeights++;
+                                }
+                            }
+                        }
+
+                        if (anyMapped) fullyMappedVerts++; else fullyUnmappedVerts++;
+
+                        if (totalW > 0.01f) {
+                            for (int s = 0; s < 4; s++) v.boneWeights[s] /= totalW;
+                        }
+                        else {
+                            for (int s = 0; s < 4; s++) v.boneWeights[s] = 0.0f;
+                        }
+                    }
+
+                    Solace::Logger::info("Bone mapping: ", mappedWeights, " mapped, ", unmappedWeights, " unmapped");
+                    Solace::Logger::info("Verts fully mapped: ", fullyMappedVerts, "/", (int)data.vertices.size());
+                }
+                m_meshes.push_back(std::make_unique<Solace::Mesh>(data));
+            }
+            Solace::Logger::info("Player model loaded with SSBO. Meshes: ", m_meshes.size());
+        }
+        catch (const std::exception& e) {
+            Solace::Logger::error("Failed to load player model: ", e.what());
+        }
+    }
+
+    void PlayerModel::swapModel(const std::string& newFilePath) {
+        loadModel(newFilePath);
+    }
+
+    void PlayerModel::update(float deltaTime) {
+        if (m_animator) m_animator->update(deltaTime);
+    }
+
+    void PlayerModel::render(Solace::Shader& shader, const Solace::Mat4& viewMatrix, const Solace::Mat4& projMatrix,
+        float worldX, float worldY, float worldZ, float yaw)
+    {
+        if (m_meshes.empty()) return;
+
+        shader.bind();
+
+        Solace::Mat4 translation = Solace::mat4Translate(worldX, worldY, worldZ);
+        Solace::Mat4 scaleMat = Solace::mat4Scale(m_scale, m_scale, m_scale);
+        Solace::Mat4 modelMatrix = Solace::mat4Multiply(translation, scaleMat);
+
+        shader.setMat4("u_view", viewMatrix.data());
+        shader.setMat4("u_proj", projMatrix.data());
+        shader.setMat4("u_model", modelMatrix.data());
+
+        if (m_animator) {
+            auto bones = m_animator->getBoneMatrices();
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_boneSSBO);
+            GLsizeiptr requiredSize = static_cast<GLsizeiptr>(bones.size() * sizeof(ozz::math::Float4x4));
+            glBufferData(GL_SHADER_STORAGE_BUFFER, requiredSize, bones.data(), GL_DYNAMIC_DRAW);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_boneSSBO);
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        }
+
+        for (const auto& mesh : m_meshes) {
+            // Проверяем, есть ли у меша реальная текстура
+            if (mesh->getTextureID() != 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, mesh->getTextureID());
+                shader.setInt("u_textureDiffuse", 0);
+                shader.setInt("u_hasTexture", 1);
+
+                // Если текстура есть, белый базовый цвет не будет тонировать её лишним оттенком
+                shader.setVec3("u_baseColor", 1.0f, 1.0f, 1.0f);
+            }
+            else {
+                // Если текстуры НЕТ, включаем режим чистой заливки цветом материала
+                shader.setInt("u_hasTexture", 0);
+                const float* col = mesh->getBaseColor();
+                shader.setVec3("u_baseColor", col[0], col[1], col[2]);
+            }
+            mesh->draw();
+        }
+
+        shader.unbind();
+    }
+
+    const ozz::animation::Skeleton& PlayerModel::GetSkeleton() const {
+        static ozz::animation::Skeleton dummySkeleton;
+        if (m_animator) {
+            return m_animator->GetSkeleton();
+        }
+        return dummySkeleton;
+    }
+
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\game\src\world\world_gen.cpp
+============================================================
+#include <game/world/world_gen.hpp>
+#include <engine/assets/model_loader.hpp>
+#include <engine/core/logger.hpp>
+#include <cmath>
+#include <stdexcept>
+
+namespace App {
+
+    WorldGen::WorldGen() {
+        Solace::Logger::info("WorldGen: initialized with default structure positions.");
+        loadAssets();
+    }
+
+    void WorldGen::loadAssets() {
+        try {
+            std::vector<Solace::MeshData> modelParts = Solace::ModelLoader::loadFromFile("assets/models/kobold_setter-female.glb");
+
+            for (auto& part : modelParts) {
+                for (auto& v : part.vertices) {
+                    for (int i = 0; i < 4; i++) {
+                        v.boneWeights[i] = 0.0f;
+                        v.boneIDs[i] = 0;
+                    }
+                }
+            }
+
+            if (!modelParts.empty()) {
+                m_monolith = std::make_unique<Solace::Mesh>(modelParts[0]);
+                Solace::Logger::info("WorldGen: Monolith model successfully created from GLB.");
+            }
+
+        }
+        catch (const std::exception& e) {
+            Solace::Logger::error("Failed to load 3D model: ", e.what());
+
+            m_monolith = std::make_unique<Solace::Mesh>(buildPillarData(0.6f, 3.0f, 4));
+        }
+
+        m_pillar = std::make_unique<Solace::Mesh>(buildPillarData(0.5f, 4.0f, 8));
+
+        Solace::Logger::info("WorldGen: Pillar created. Valid: ", m_pillar->valid());
+    }
+
+    Solace::MeshData WorldGen::buildPillarData(float radius, float height, int segments) {
+        Solace::MeshData data;
+        const float pi2 = 6.2831853f;
+        for (int i = 0; i < segments; ++i) {
+            const float a0 = pi2 * static_cast<float>(i) / static_cast<float>(segments);
+            const float a1 = pi2 * static_cast<float>(i + 1) / static_cast<float>(segments);
+            const float x0 = std::cos(a0) * radius, z0 = std::sin(a0) * radius;
+            const float x1 = std::cos(a1) * radius, z1 = std::sin(a1) * radius;
+            const float nx = std::cos((a0 + a1) * 0.5f), nz = std::sin((a0 + a1) * 0.5f);
+
+            const unsigned int base = static_cast<unsigned int>(data.vertices.size());
+
+            data.vertices.push_back({ { x0, 0.0f,    z0 },{ nx, 0.0f, nz },{ 0.0f, 0.0f } });
+            data.vertices.push_back({ { x1, 0.0f,    z1 },{ nx, 0.0f, nz },{ 1.0f, 0.0f } });
+            data.vertices.push_back({ { x1, height,  z1 },{ nx, 0.0f, nz },{ 1.0f, 1.0f } });
+            data.vertices.push_back({ { x0, height,  z0 },{ nx, 0.0f, nz },{ 0.0f, 1.0f } });
+
+            data.indices.insert(data.indices.end(),
+                { base, base + 2, base + 1,
+                  base, base + 3, base + 2 });
+        }
+        return data;
+    }
+
+    void WorldGen::render(const Solace::Shader& shader,
+        Solace::Mat4 view, Solace::Mat4 proj) const {
+        shader.bind();
+
+        shader.setMat4("u_view", view.data());
+        shader.setMat4("u_proj", proj.data());
+
+        // Освещение из конфига/настроек
+        shader.setVec3("u_sunDir", 0.4f, 0.8f, 0.35f);
+        shader.setVec3("u_sunColor", 1.00f, 0.92f, 0.78f);
+        shader.setVec3("u_skyColor", 0.45f, 0.55f, 0.60f);
+        shader.setVec3("u_groundColor", 0.35f, 0.32f, 0.28f);
+
+        // --- 1. РЕНДЕР КОЛОННЫ (процедурная, без текстуры -> цветная) ---
+        Vec3 m_pillarPos = { 5.0f, 0.0f, 0.0f };
+        const Solace::Mat4 model = Solace::mat4Translate(m_pillarPos.x, 0.0f, m_pillarPos.z);
+        shader.setMat4("u_model", model.data());
+
+        // Явно говорим шейдеру: это цветная модель без текстуры
+        shader.setInt("u_hasTexture", 0);
+        shader.setVec3("u_baseColor", 1.0f, 0.0f, 0.0f); // Красная колонна
+
+        if (!m_pillar || !m_pillar->valid()) {
+            Solace::Logger::error("WorldGen: Pillar is invalid!");
+            return;
+        }
+        m_pillar->draw();
+
+
+        // --- 2. РЕНДЕР МОНОЛИТА ---
+        Vec3 m_monolithPos = { -5.0f, 0.0f, 0.0f };
+        if (m_monolith) {
+            const Solace::Mat4 model2 = Solace::mat4Translate(m_monolithPos.x, 0.0f, m_monolithPos.z);
+            shader.setMat4("u_model", model2.data());
+
+            // Проверяем, есть ли текстура у монолита
+            if (m_monolith->getTextureID() != 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, m_monolith->getTextureID());
+                shader.setInt("u_textureDiffuse", 0);
+                shader.setInt("u_hasTexture", 1);
+                shader.setVec3("u_baseColor", 1.0f, 1.0f, 1.0f); // Сбрасываем тонирование в белый
+            }
+            else {
+                shader.setInt("u_hasTexture", 0);
+                shader.setVec3("u_baseColor", 0.40f, 0.42f, 0.45f); // Темный камень для монолита
+            }
+
+            m_monolith->draw();
+        }
+
+        shader.unbind();
+    }
+
+} // namespace Game 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\assets\shaders\core\base_fs.glsl
+============================================================
+#version 330 core
+out vec4 FragColor;
+
+in vec3 FragPos;
+in vec3 Normal;
+in vec2 TexCoords;
+
+uniform vec3 u_sunDir;
+uniform vec3 u_sunColor;
+uniform vec3 u_skyColor;
+uniform vec3 u_groundColor;
+uniform vec3 u_baseColor;   
+uniform vec3 u_viewPos;     
+uniform vec3 u_rimColor;    
+
+uniform float u_toonMidStep;    
+uniform float u_toonShadowStep; 
+uniform float u_rimPower;       
+
+uniform sampler2D u_textureDiffuse;
+uniform bool u_hasTexture; // <-- ����: ���� �� �������� � ������
+
+void main() {
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(u_sunDir);
+    vec3 viewDir = normalize(u_viewPos - FragPos);
+
+    // Cel-shading � ���������...
+    float NdotL = dot(norm, lightDir);
+    float shadowStep = smoothstep(0.0, u_toonShadowStep, NdotL);
+    float midStep = smoothstep(u_toonMidStep, u_toonMidStep + 0.05, NdotL);
+    vec3 toonDiffuse = (shadowStep * 0.6 + midStep * 0.4) * u_sunColor;
+
+    float ndotup = norm.y * 0.5 + 0.5; 
+    vec3 ambient = mix(u_groundColor, u_skyColor, ndotup);
+
+    // ��������: ������� ������ ��� ����������?
+    vec3 objectColor = u_baseColor;
+    float alpha = 1.0f;
+
+    if (u_hasTexture) {
+        vec4 texColor = texture(u_textureDiffuse, TexCoords);
+        if (texColor.a < 0.1f) discard; 
+        objectColor = texColor.rgb * u_baseColor; // �������� � ������������ ������� ����������� ������
+        alpha = texColor.a;
+    }
+
+    vec3 lighting = ambient + toonDiffuse;
+    vec3 finalColor = objectColor * lighting;
+
+    // Rim light...
+    float rim = 1.0 - max(dot(norm, viewDir), 0.0);
+    rim = smoothstep(u_rimPower, u_rimPower + 0.1, rim); 
+    finalColor += u_rimColor * rim * objectColor; 
+
+    FragColor = vec4(finalColor, alpha);
+}
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\assets\shaders\core\base_vs.glsl
+============================================================
+#version 430 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+layout (location = 2) in vec2 aTexCoords;
+layout (location = 3) in ivec4 aBoneIDs;
+layout (location = 4) in vec4 aBoneWeights;
+
+out vec3 FragPos;
+out vec3 Normal;
+out vec2 TexCoords;
+
+uniform mat4 u_model;
+uniform mat4 u_view;
+uniform mat4 u_proj;
+
+layout(std430, binding = 0) readonly buffer BoneBuffer {
+    mat4 u_bones[];
+};
+
+void main() {
+    float totalWeight = aBoneWeights[0] + aBoneWeights[1] + aBoneWeights[2] + aBoneWeights[3];
+    vec4 localPos = vec4(aPos, 1.0);
+    vec3 localNormal = aNormal;
+    
+    if (totalWeight > 0.001) {
+        vec4 skinnedPos = vec4(0.0);
+        vec3 skinnedNormal = vec3(0.0);
+        for (int i = 0; i < 4; ++i) {
+            int boneID = aBoneIDs[i];
+            float weight = aBoneWeights[i];
+            if (weight > 0.0 && boneID >= 0) {
+                skinnedPos += weight * (u_bones[boneID] * vec4(aPos, 1.0));
+                skinnedNormal += weight * (mat3(u_bones[boneID]) * aNormal);
+            }
+        }
+        localPos = skinnedPos;
+        localNormal = skinnedNormal;
+    }
+    
+    FragPos = vec3(u_model * localPos);
+    Normal = mat3(transpose(inverse(u_model))) * localNormal;
+    TexCoords = aTexCoords;
+    gl_Position = u_proj * u_view * vec4(FragPos, 1.0);
+} 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\assets\shaders\core\post_fs.glsl
+============================================================
+#version 330 core
+in  vec2 v_uv;
+out vec4 outColor;
+
+uniform sampler2D u_scene;   
+uniform vec2      u_lowRes;  
+uniform float     u_paletteBits;
+uniform float     u_dither;
+uniform float     u_bloomStrength;
+uniform float     u_bloomThreshold;
+
+float bayer2(vec2 a) { a = floor(a); return fract(a.x * 0.5 + a.y * a.y * 0.75); }
+float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+float bayer8(vec2 a) { return bayer4(0.5 * a) * 0.25 + bayer2(a); }
+
+vec3 texel(vec2 p) {
+    return texture(u_scene, (p + 0.5) / u_lowRes).rgb;
+}
+
+void main() {
+    vec2 pix = floor(v_uv * u_lowRes);   
+    vec3 col = texel(pix);
+
+    // Bloom
+    vec3 bloom = vec3(0.0);
+    bloom += max(texel(pix + vec2(-1.0, -1.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2( 0.0, -1.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2( 1.0, -1.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2(-1.0,  0.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2( 0.0,  0.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2( 1.0,  0.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2(-1.0,  1.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2( 0.0,  1.0)) - u_bloomThreshold, 0.0);
+    bloom += max(texel(pix + vec2( 1.0,  1.0)) - u_bloomThreshold, 0.0);
+
+    col += bloom * (u_bloomStrength / 9.0);
+
+    float safePaletteBits = max(u_paletteBits, 5.0); 
+    float levels = pow(2.0, safePaletteBits) - 1.0;
+    
+    float noise  = bayer8(pix) - 0.5;
+    col = floor(col * levels + noise * u_dither + 0.5) / levels;
+
+    outColor = vec4(col, 1.0);
+} 
+
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\assets\shaders\core\post_vs.glsl
+============================================================
+#version 330 core
+layout(location = 0) in vec2 a_pos;
+layout(location = 1) in vec2 a_uv;
+out vec2 v_uv;
+void main() {
+    v_uv = a_uv;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+} 
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\assets\shaders\world\monolith_fs.glsl
+============================================================
+#version 330 core
+out vec4 fragColor;
+
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec3 u_cameraPos;
+
+// --- ������� ��� � ��� ---
+vec3 hash3(vec3 p) {
+    p = vec3(dot(p, vec3(127.1, 311.7, 74.7)),
+             dot(p, vec3(269.5, 183.3, 246.1)),
+             dot(p, vec3(113.5, 271.9, 124.6)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    vec3 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(dot(hash3(i + vec3(0,0,0)), f - vec3(0,0,0)),
+                       dot(hash3(i + vec3(1,0,0)), f - vec3(1,0,0)), u.x),
+                   mix(dot(hash3(i + vec3(0,1,0)), f - vec3(0,1,0)),
+                       dot(hash3(i + vec3(1,1,0)), f - vec3(1,1,0)), u.x), u.y),
+               mix(mix(dot(hash3(i + vec3(0,0,1)), f - vec3(0,0,1)),
+                       dot(hash3(i + vec3(1,0,1)), f - vec3(1,0,1)), u.x),
+                   mix(dot(hash3(i + vec3(0,1,1)), f - vec3(0,1,1)),
+                       dot(hash3(i + vec3(1,1,1)), f - vec3(1,1,1)), u.x), u.y), u.z);
+}
+
+float fbm(vec3 p) {
+    float f = 0.0;
+    float w = 0.5;
+    for (int i = 0; i < 3; i++) { // ��������� �� 3 ����� ��� ������������ ������
+        f += w * noise(p);
+        p *= 2.0;
+        w *= 0.5;
+    }
+    return f;
+}
+
+float ridgedNoise(vec3 p) {
+    float f = 0.0;
+    float w = 0.5;
+    for (int i = 0; i < 3; i++) {
+        float n = 1.0 - abs(noise(p));
+        n = n * n;
+        f += n * w;
+        w *= 0.5;
+        p *= 2.0;
+    }
+    return f;
+}
+
+// 1. ������ ������� ��������� (���� 1000 FPS ��� �����)
+float map(vec3 p) {
+    vec3 boxD = abs(p) - vec3(0.9, 1.9, 0.3);
+    return length(max(boxD, 0.0)) + min(max(boxD.x, max(boxD.y, boxD.z)), 0.0);
+}
+
+// ������ �������� �� ������ �����
+vec3 calcNormal(vec3 p) {
+    float h = 0.001;
+    vec2 k = vec2(1.0, -1.0);
+    return normalize(k.xyy * map(p + k.xyy * h) +
+                     k.yyx * map(p + k.yyx * h) +
+                     k.yxy * map(p + k.yxy * h) +
+                     k.xxx * map(p + k.xxx * h));
+}
+
+void main() {
+    vec2 st = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+
+    vec3 ro = u_cameraPos;
+    vec3 rd = normalize(vec3(st, 1.0));
+
+    // ������� Raymarching (������� �����)
+    float t = 0.0;
+    float maxDist = 35.0;
+
+    for (int i = 0; i < 64; i++) { // ����������� ����� �����
+        vec3 p = ro + rd * t;
+        float d = map(p);
+        if (d < 0.001 || t > maxDist) break;
+        t += d;
+    }
+
+    vec3 color = vec3(0.003, 0.003, 0.008);
+
+    if (t < maxDist) {
+        vec3 p = ro + rd * t;
+        vec3 baseNormal = calcNormal(p);
+
+        // --- 2. ��������������� �����: ���������� �������� ������ ������ ����� ����� ---
+        // ��� ������� ���������� ������ � ������ ��������� ���� ��� � ����� hit, � �� �� ����� ����!
+
+        float slateStrata = abs(sin(p.y * 16.0 + fbm(p * 2.5) * 3.0));
+        float fractures = ridgedNoise(p * 3.0);
+
+        // ������������ ������� �� �����������, �������� ������ �������� ������� (Bump/Normal mapping)
+        vec3 normal = normalize(baseNormal + vec3(dFdx(slateStrata), dFdy(slateStrata), 0.0) * 0.4);
+
+        // ������� ������� ������ � ��������
+        vec3 stoneColor = mix(vec3(0.05, 0.05, 0.07), vec3(0.15, 0.16, 0.18), fbm(p * 4.0));
+
+        // ��������� �������� � ��������
+        float quartz = smoothstep(0.7, 0.9, fractures);
+        stoneColor = mix(stoneColor, vec3(0.5, 0.6, 0.65), quartz * 0.7);
+
+        // ����� � ����������� ������
+        stoneColor *= mix(0.6, 1.0, slateStrata);
+
+        // ���������
+        vec3 lightDir = normalize(vec3(0.5, 1.0, -0.4));
+        float diff = max(dot(normal, lightDir), 0.0);
+
+        vec3 viewDir = normalize(ro - p);
+        vec3 halfDir = normalize(lightDir + viewDir);
+        float spec = pow(max(dot(normal, halfDir), 0.0), 32.0);
+
+        vec3 lighting = stoneColor * (diff * 1.5 + 0.1) + vec3(0.25) * spec;
+
+        // �����
+        float fog = 1.0 - exp(-0.03 * t * t);
+        color = mix(lighting, vec3(0.003, 0.003, 0.008), fog);
+    }
+
+    color = pow(color, vec3(1.0 / 2.2));
+    fragColor = vec4(color, 1.0);
+}
+
+
+============================================================
+=== FILE: D:\Backup\11\_\dde\archive\Solace\assets\configs\graphics.json
+============================================================
+{
+  "lighting": {
+    "sunDir": [ 0.4, 0.8, 0.35 ],
+    "sunColor": [ 1.0, 0.92, 0.78 ],
+    "skyColor": [ 0.45, 0.55, 0.60 ],
+    "groundColor": [ 0.35, 0.32, 0.28 ],
+    "toonMidStep": 0.4,
+    "toonShadowStep": 0.15,
+    "rimColor": [ 1.0, 0.8, 0.5 ],
+    "rimPower": 1.2
+  },
+  "postProcess": {
+    "targetHeight": 180,
+    "paletteBits": 6.0,
+    "ditherAmount": 0.5,
+    "bloomStrength": 0.7,
+    "bloomThreshold": 0.85
+  },
+  "clearColor": [ 0.45, 0.55, 0.65, 1.0 ]
+}
