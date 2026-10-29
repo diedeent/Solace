@@ -1,0 +1,685 @@
+Структура папок тома Документы
+Серийный номер тома: 94D6-D0F3
+D:.
+|   CMakeLists.txt
+|   CMakePresets.json
+|   req.txt
+|   structurs.txt
+|   
++---.vs
+|   |   CMake Overview
+|   |   cmake.db
+|   |   ProjectSettings.json
+|   |   slnx.sqlite
+|   |   VSWorkspaceState.json
+|   |   
+|   +---rpg
+|   |   \---v18
+|   |           Browse.VC.db
+|   |           DocumentLayout.json
+|   |           
+|   \---Solace
+|       \---v18
+|           |   Browse.VC.db
+|           |   Browse.VC.db-shm
+|           |   Browse.VC.db-wal
+|           |   DocumentLayout.backup.json
+|           |   DocumentLayout.json
+|           |   
+|           \---ipch
+|               \---AutoPCH
+|                   +---10150325ba962bd5
+|                   |       MODEL_LOADER.ipch
+|                   |       
+|                   +---10642d6c59e1b328
+|                   |       ENGINE.ipch
+|                   |       
+|                   +---13e2bef71da3927c
+|                   |       GAME.ipch
+|                   |       
+|                   +---1ca95f8e072c72e0
+|                   |       MESH.ipch
+|                   |       
+|                   +---1cfa35299a895227
+|                   |       LOGGER.ipch
+|                   |       
+|                   +---1da0779ae57e0ea4
+|                   |       FRAME_BUFFER.ipch
+|                   |       
+|                   +---214efc17d6d721fd
+|                   |       MATH_UTILS.ipch
+|                   |       
+|                   +---23713affbae2e952
+|                   |       WORLD_GEN.ipch
+|                   |       
+|                   +---24406a222bfc8449
+|                   +---29088bf91b28e6f1
+|                   |       SHADER.ipch
+|                   |       
+|                   +---2f4000bac1e61e71
+|                   |       ENGINE.ipch
+|                   |       
+|                   +---3575e575eacdf19b
+|                   +---4ba6eec2db884e69
+|                   |       INPUT_SYSTEM.ipch
+|                   |       
+|                   +---5200738cd8b63c65
+|                   +---660ad23f96b930f7
+|                   |       WORLD_GEN.ipch
+|                   |       
+|                   +---6a83c701cbd357db
+|                   +---6ca31f93ec98b7f0
+|                   +---6f41a8149674fcbf
+|                   |       WINDOW.ipch
+|                   |       
+|                   +---735f393d975210c
+|                   |       POST_PROCESS.ipch
+|                   |       
+|                   +---7e18207f849bd35b
+|                   |       GAME.ipch
+|                   |       
+|                   +---8a882c16c5a1f2d7
+|                   +---8f0eb35955f06535
+|                   +---99cc8bab19e4a348
+|                   +---a3588e51f8e94167
+|                   |       FRAME_BUFFER.ipch
+|                   |       
+|                   +---a427ede624b556b4
+|                   |       MATH_UTILS.ipch
+|                   |       
+|                   +---a4520b034a0664bf
+|                   +---a49702dc461d4033
+|                   |       SHADER_LOADER.ipch
+|                   |       
+|                   +---ac1dc87c648b5b26
+|                   +---b012d6ff91e7f41f
+|                   +---b415fa1d4f871aba
+|                   +---bdcbed766ba75897
+|                   |       RENDERER.ipch
+|                   |       
+|                   +---bdfb36b4c0b2c994
+|                   +---c1be7bc6b472d6a8
+|                   |       SHADER.ipch
+|                   |       
+|                   +---cb1d42d764bb6334
+|                   +---d71261f6e7153a6e
+|                   |       SHADER.ipch
+|                   |       
+|                   +---dd121e209bd6614a
+|                   +---deac1e3a3e9d0145
+|                   |       POST_PROCESS.ipch
+|                   |       
+|                   +---e27b592cbef9c4c3
+|                   +---e5b244d55d678b1e
+|                   +---e7adb17a807b41c0
+|                   +---e7b97eefe8c8a255
+|                   +---e873f0c5f3906b12
+|                   |       WINDOW.ipch
+|                   |       
+|                   +---e8eb882c6c818aa5
+|                   +---f2de54e836d18199
+|                   |       MESH.ipch
+|                   |       
+|                   +---f48fd840ff27d03e
+|                   |       MAIN.ipch
+|                   |       
+|                   +---f4fc95e5bf523fc1
+|                   +---f69e3a9e37a3bb51
+|                   +---f8e3d2dcbcdd19e4
+|                   |       SHADER_LOADER.ipch
+|                   |       
+|                   +---fa189b2a1b98efdc
+|                   |       MODEL_LOADER.ipch
+|                   |       
+|                   +---fbf0a764c786c24
+|                   +---fcd3ce6b7736feb8
+|                   |       RENDERER.ipch
+|                   |       
+|                   \---ff79a6cc2536a238
++---assets
+|   +---audio
+|   |   +---effects
+|   |   \---tracks
+|   +---configs
+|   +---models
+|   \---shaders
+|       +---core
+|       |       base_fs.glsl
+|       |       base_vs.glsl
+|       |       post_fs.glsl
+|       |       post_vs.glsl
+|       |       
+|       +---entities
+|       \---world
+|               monolith_fs.glsl
+|               
++---engine
+|   |   CMakeLists.txt
+|   |   
+|   +---include
+|   |   \---engine
+|   |       +---ai
+|   |       |       behavior_tree.hpp
+|   |       |       enemy_modules.hpp
+|   |       |       
+|   |       +---core
+|   |       |       engine.hpp
+|   |       |       logger.hpp
+|   |       |       window.hpp
+|   |       |       
+|   |       +---graphics
+|   |       |       frame_buffer.hpp
+|   |       |       mesh.hpp
+|   |       |       post_process.hpp
+|   |       |       renderer.hpp
+|   |       |       shader.hpp
+|   |       |       shader_loader.hpp
+|   |       |       
+|   |       +---systems
+|   |       |       combat_system.hpp
+|   |       |       dev_console.hpp
+|   |       |       input_system.hpp
+|   |       |       item_system.hpp
+|   |       |       
+|   |       \---utils
+|   |               math_utils.hpp
+|   |               model_loader.hpp
+|   |               random_gen.hpp
+|   |               
+|   \---src
+|       +---ai
+|       +---core
+|       |       engine.cpp
+|       |       window.cpp
+|       |       
+|       +---graphics
+|       |       frame_buffer.cpp
+|       |       mesh.cpp
+|       |       post_process.cpp
+|       |       renderer.cpp
+|       |       shader.cpp
+|       |       shader_loader.cpp
+|       |       
+|       +---systems
+|       |       combat_system.cpp
+|       |       dev_console.cpp
+|       |       input_system.cpp
+|       |       item_system.cpp
+|       |       
+|       \---utils
+|               math_utils.cpp
+|               model_loader.cpp
+|               random_gen.cpp
+|               
++---game
+|   |   CMakeLists.txt
+|   |   
+|   +---include
+|   |   \---game
+|   |       +---core
+|   |       |       game.hpp
+|   |       |       game_state.hpp
+|   |       |       
+|   |       +---entities
+|   |       |       enemy.hpp
+|   |       |       player.hpp
+|   |       |       
+|   |       \---world
+|   |               structures.hpp
+|   |               world_gen.hpp
+|   |               
+|   \---src
+|       |   main.cpp
+|       |   
+|       +---core
+|       |       game.cpp
+|       |       game_state.cpp
+|       |       
+|       +---entities
+|       |       enemy.cpp
+|       |       player.cpp
+|       |       
+|       \---world
+|               structures.cpp
+|               world_gen.cpp
+|               
++---out
+|   \---build
+|       \---windows-vs-debug
+|           |   ALL_BUILD.vcxproj
+|           |   ALL_BUILD.vcxproj.filters
+|           |   CMakeCache.txt
+|           |   cmake_install.cmake
+|           |   Solace.slnx
+|           |   VSInheritEnvironments.txt
+|           |   ZERO_CHECK.vcxproj
+|           |   ZERO_CHECK.vcxproj.filters
+|           |   
+|           +---.cmake
+|           |   \---api
+|           |       \---v1
+|           |           +---query
+|           |           |   \---client-MicrosoftVS
+|           |           |           query.json
+|           |           |           
+|           |           \---reply
+|           |                   cache-v2-c21d306d8bac8d200478.json
+|           |                   cmakeFiles-v1-cfc7e7980dfe40fafa63.json
+|           |                   codemodel-v2-79ad5c89698a3fe14279.json
+|           |                   directory-.-Debug-f040eec181a89de70dbe.json
+|           |                   directory-.-MinSizeRel-f040eec181a89de70dbe.json
+|           |                   directory-.-Release-f040eec181a89de70dbe.json
+|           |                   directory-.-RelWithDebInfo-f040eec181a89de70dbe.json
+|           |                   directory-engine-Debug-d09d41c7cc3a424e4005.json
+|           |                   directory-engine-MinSizeRel-d09d41c7cc3a424e4005.json
+|           |                   directory-engine-Release-d09d41c7cc3a424e4005.json
+|           |                   directory-engine-RelWithDebInfo-d09d41c7cc3a424e4005.json
+|           |                   directory-game-Debug-dc247aa4e2f60a7500b4.json
+|           |                   directory-game-MinSizeRel-dc247aa4e2f60a7500b4.json
+|           |                   directory-game-Release-dc247aa4e2f60a7500b4.json
+|           |                   directory-game-RelWithDebInfo-dc247aa4e2f60a7500b4.json
+|           |                   index-2026-10-24T07-47-03-0675.json
+|           |                   target-ALL_BUILD-Debug-1beeee813c5b33e53c9a.json
+|           |                   target-ALL_BUILD-Debug-2f885c568ad659c92528.json
+|           |                   target-ALL_BUILD-Debug-a58b078a2e6d9d23f2d8.json
+|           |                   target-ALL_BUILD-MinSizeRel-1beeee813c5b33e53c9a.json
+|           |                   target-ALL_BUILD-MinSizeRel-2f885c568ad659c92528.json
+|           |                   target-ALL_BUILD-MinSizeRel-a58b078a2e6d9d23f2d8.json
+|           |                   target-ALL_BUILD-Release-1beeee813c5b33e53c9a.json
+|           |                   target-ALL_BUILD-Release-2f885c568ad659c92528.json
+|           |                   target-ALL_BUILD-Release-a58b078a2e6d9d23f2d8.json
+|           |                   target-ALL_BUILD-RelWithDebInfo-1beeee813c5b33e53c9a.json
+|           |                   target-ALL_BUILD-RelWithDebInfo-2f885c568ad659c92528.json
+|           |                   target-ALL_BUILD-RelWithDebInfo-a58b078a2e6d9d23f2d8.json
+|           |                   target-engine-Debug-26e0f04bbb89bd63fe25.json
+|           |                   target-engine-MinSizeRel-7abd0e1333df21c91dd3.json
+|           |                   target-engine-Release-fce59455d7bb68a24801.json
+|           |                   target-engine-RelWithDebInfo-411667958cac7566eedb.json
+|           |                   target-Solace-Debug-20bed49e78063754d0bc.json
+|           |                   target-Solace-MinSizeRel-2bca0f6e11048d96719e.json
+|           |                   target-Solace-Release-f01fd1acbac13e843efa.json
+|           |                   target-Solace-RelWithDebInfo-aaa6211ae4151f991b23.json
+|           |                   target-ZERO_CHECK-Debug-b77a16ab6327f7ab61aa.json
+|           |                   target-ZERO_CHECK-MinSizeRel-b77a16ab6327f7ab61aa.json
+|           |                   target-ZERO_CHECK-Release-b77a16ab6327f7ab61aa.json
+|           |                   target-ZERO_CHECK-RelWithDebInfo-b77a16ab6327f7ab61aa.json
+|           |                   toolchains-v1-bf7f92d94e7c94466002.json
+|           |                   
+|           +---ALL_BUILD.dir
+|           |   +---Debug
+|           |   +---MinSizeRel
+|           |   +---Release
+|           |   \---RelWithDebInfo
+|           +---bin
+|           |   \---Debug
+|           |       |   SDL3.dll
+|           |       |   Solace.exe
+|           |       |   Solace.pdb
+|           |       |   
+|           |       \---assets
+|           |           +---audio
+|           |           |   +---effects
+|           |           |   \---tracks
+|           |           +---configs
+|           |           +---models
+|           |           \---shaders
+|           |               +---core
+|           |               |       base_fs.glsl
+|           |               |       base_vs.glsl
+|           |               |       post_fs.glsl
+|           |               |       post_vs.glsl
+|           |               |       
+|           |               +---entities
+|           |               \---world
+|           |                       monolith_fs.glsl
+|           |                       
+|           +---CMakeFiles
+|           |   |   cmake.check_cache
+|           |   |   CMakeConfigureLog.yaml
+|           |   |   generate.stamp
+|           |   |   generate.stamp.depend
+|           |   |   generate.stamp.list
+|           |   |   InstallScripts.json
+|           |   |   TargetDirectories.txt
+|           |   |   
+|           |   +---4.3.1-msvc1
+|           |   |   |   CMakeCCompiler.cmake
+|           |   |   |   CMakeCXXCompiler.cmake
+|           |   |   |   CMakeDetermineCompilerABI_C.bin
+|           |   |   |   CMakeDetermineCompilerABI_CXX.bin
+|           |   |   |   CMakeRCCompiler.cmake
+|           |   |   |   CMakeSystem.cmake
+|           |   |   |   VCTargetsPath.txt
+|           |   |   |   VCTargetsPath.vcxproj
+|           |   |   |   
+|           |   |   +---CompilerIdC
+|           |   |   |   |   CMakeCCompilerId.c
+|           |   |   |   |   CompilerIdC.exe
+|           |   |   |   |   CompilerIdC.vcxproj
+|           |   |   |   |   
+|           |   |   |   +---Debug
+|           |   |   |   |   |   CMakeCCompilerId.obj
+|           |   |   |   |   |   CompilerIdC.exe.recipe
+|           |   |   |   |   |   
+|           |   |   |   |   \---CompilerIdC.tlog
+|           |   |   |   |           CL.command.1.tlog
+|           |   |   |   |           Cl.items.tlog
+|           |   |   |   |           CL.read.1.tlog
+|           |   |   |   |           CL.write.1.tlog
+|           |   |   |   |           CompilerIdC.lastbuildstate
+|           |   |   |   |           link.command.1.tlog
+|           |   |   |   |           link.read.1.tlog
+|           |   |   |   |           link.secondary.1.tlog
+|           |   |   |   |           link.write.1.tlog
+|           |   |   |   |           
+|           |   |   |   \---tmp
+|           |   |   +---CompilerIdCXX
+|           |   |   |   |   CMakeCXXCompilerId.cpp
+|           |   |   |   |   CompilerIdCXX.exe
+|           |   |   |   |   CompilerIdCXX.vcxproj
+|           |   |   |   |   
+|           |   |   |   +---Debug
+|           |   |   |   |   |   CMakeCXXCompilerId.obj
+|           |   |   |   |   |   CompilerIdCXX.exe.recipe
+|           |   |   |   |   |   
+|           |   |   |   |   \---CompilerIdCXX.tlog
+|           |   |   |   |           CL.command.1.tlog
+|           |   |   |   |           Cl.items.tlog
+|           |   |   |   |           CL.read.1.tlog
+|           |   |   |   |           CL.write.1.tlog
+|           |   |   |   |           CompilerIdCXX.lastbuildstate
+|           |   |   |   |           link.command.1.tlog
+|           |   |   |   |           link.read.1.tlog
+|           |   |   |   |           link.secondary.1.tlog
+|           |   |   |   |           link.write.1.tlog
+|           |   |   |   |           
+|           |   |   |   \---tmp
+|           |   |   +---VCTargetsPath
+|           |   |   |   \---x64
+|           |   |   |       \---Debug
+|           |   |   |           |   VCTargetsPath.recipe
+|           |   |   |           |   
+|           |   |   |           \---VCTargetsPath.tlog
+|           |   |   |                   VCTargetsPath.lastbuildstate
+|           |   |   |                   
+|           |   |   \---x64
+|           |   |       \---Debug
+|           |   +---7e48802b05c9ac35b6ed1d23d3282551
+|           |   |       generate.stamp.rule
+|           |   |       
+|           |   \---pkgRedirects
+|           +---engine
+|           |   |   ALL_BUILD.vcxproj
+|           |   |   ALL_BUILD.vcxproj.filters
+|           |   |   cmake_install.cmake
+|           |   |   engine.slnx
+|           |   |   engine.vcxproj
+|           |   |   engine.vcxproj.filters
+|           |   |   
+|           |   +---ALL_BUILD.dir
+|           |   |   +---Debug
+|           |   |   +---MinSizeRel
+|           |   |   +---Release
+|           |   |   \---RelWithDebInfo
+|           |   +---CMakeFiles
+|           |   |       generate.stamp
+|           |   |       generate.stamp.depend
+|           |   |       
+|           |   \---engine.dir
+|           |       +---Debug
+|           |       |   |   combat_system.obj
+|           |       |   |   dev_console.obj
+|           |       |   |   engine.Build.CppClean.log
+|           |       |   |   engine.lib.recipe
+|           |       |   |   engine.obj
+|           |       |   |   engine.vcxproj.FileListAbsolute.txt
+|           |       |   |   frame_buffer.obj
+|           |       |   |   glad.obj
+|           |       |   |   input_system.obj
+|           |       |   |   item_system.obj
+|           |       |   |   math_utils.obj
+|           |       |   |   mesh.obj
+|           |       |   |   model_loader.obj
+|           |       |   |   post_process.obj
+|           |       |   |   random_gen.obj
+|           |       |   |   renderer.obj
+|           |       |   |   shader.obj
+|           |       |   |   shader_loader.obj
+|           |       |   |   window.obj
+|           |       |   |   
+|           |       |   +---engine.tlog
+|           |       |   |       CL.command.1.tlog
+|           |       |   |       Cl.items.tlog
+|           |       |   |       CL.read.1.tlog
+|           |       |   |       CL.write.1.tlog
+|           |       |   |       CustomBuild.command.1.tlog
+|           |       |   |       CustomBuild.read.1.tlog
+|           |       |   |       CustomBuild.write.1.tlog
+|           |       |   |       engine.lastbuildstate
+|           |       |   |       Lib-link.read.1.tlog
+|           |       |   |       Lib-link.write.1.tlog
+|           |       |   |       Lib.command.1.tlog
+|           |       |   |       
+|           |       |   +---engine_MD.tlog
+|           |       |   \---microsoft
+|           |       |       \---STL
+|           |       +---MinSizeRel
+|           |       +---Release
+|           |       \---RelWithDebInfo
+|           +---game
+|           |   |   ALL_BUILD.vcxproj
+|           |   |   ALL_BUILD.vcxproj.filters
+|           |   |   cmake_install.cmake
+|           |   |   game.slnx
+|           |   |   Solace.vcxproj
+|           |   |   Solace.vcxproj.filters
+|           |   |   
+|           |   +---ALL_BUILD.dir
+|           |   |   +---Debug
+|           |   |   +---MinSizeRel
+|           |   |   +---Release
+|           |   |   \---RelWithDebInfo
+|           |   +---CMakeFiles
+|           |   |       generate.stamp
+|           |   |       generate.stamp.depend
+|           |   |       
+|           |   \---Solace.dir
+|           |       +---Debug
+|           |       |   |   game.obj
+|           |       |   |   game_state.obj
+|           |       |   |   main.obj
+|           |       |   |   player.obj
+|           |       |   |   Solace.Build.CppClean.log
+|           |       |   |   Solace.exe.recipe
+|           |       |   |   Solace.ilk
+|           |       |   |   Solace.vcxproj.FileListAbsolute.txt
+|           |       |   |   structures.obj
+|           |       |   |   vc145.pdb
+|           |       |   |   world_gen.obj
+|           |       |   |   
+|           |       |   +---microsoft
+|           |       |   |   \---STL
+|           |       |   +---Solace.tlog
+|           |       |   |       CL.command.1.tlog
+|           |       |   |       Cl.items.tlog
+|           |       |   |       CL.read.1.tlog
+|           |       |   |       CL.write.1.tlog
+|           |       |   |       CustomBuild.command.1.tlog
+|           |       |   |       CustomBuild.read.1.tlog
+|           |       |   |       CustomBuild.write.1.tlog
+|           |       |   |       link.command.1.tlog
+|           |       |   |       link.read.1.tlog
+|           |       |   |       link.secondary.1.tlog
+|           |       |   |       link.write.1.tlog
+|           |       |   |       Solace.lastbuildstate
+|           |       |   |       
+|           |       |   \---Solace_MD.tlog
+|           |       +---MinSizeRel
+|           |       +---Release
+|           |       \---RelWithDebInfo
+|           +---lib
+|           |   \---Debug
+|           |           engine.lib
+|           |           engine.pdb
+|           |           
+|           +---Testing
+|           |   \---Temporary
+|           |           LastTest.log
+|           |           
+|           +---x64
+|           |   \---Debug
+|           |       +---ALL_BUILD
+|           |       |   |   ALL_BUILD.recipe
+|           |       |   |   
+|           |       |   \---ALL_BUILD.tlog
+|           |       |           ALL_BUILD.lastbuildstate
+|           |       |           CustomBuild.command.1.tlog
+|           |       |           CustomBuild.read.1.tlog
+|           |       |           CustomBuild.write.1.tlog
+|           |       |           
+|           |       \---ZERO_CHECK
+|           |           |   ZERO_CHECK.Build.CppClean.log
+|           |           |   ZERO_CHECK.recipe
+|           |           |   ZERO_CHECK.vcxproj.FileListAbsolute.txt
+|           |           |   
+|           |           \---ZERO_CHECK.tlog
+|           |                   CustomBuild.command.1.tlog
+|           |                   CustomBuild.read.1.tlog
+|           |                   CustomBuild.write.1.tlog
+|           |                   ZERO_CHECK.lastbuildstate
+|           |                   
+|           \---ZERO_CHECK.dir
+|               +---Debug
+|               +---MinSizeRel
+|               +---Release
+|               \---RelWithDebInfo
+\---vendor
+    +---glad
+    |   +---include
+    |   |   +---glad
+    |   |   |       glad.h
+    |   |   |       
+    |   |   \---KHR
+    |   |           khrplatform.h
+    |   |           
+    |   \---src
+    |           glad.c
+    |           
+    \---SDL3-3.2.0
+        |   .git-hash
+        |   INSTALL.md
+        |   LICENSE.txt
+        |   README.md
+        |   
+        +---cmake
+        |       SDL3Config.cmake
+        |       SDL3ConfigVersion.cmake
+        |       sdlcpu.cmake
+        |       
+        +---include
+        |   \---SDL3
+        |           SDL.h
+        |           SDL_assert.h
+        |           SDL_asyncio.h
+        |           SDL_atomic.h
+        |           SDL_audio.h
+        |           SDL_begin_code.h
+        |           SDL_bits.h
+        |           SDL_blendmode.h
+        |           SDL_camera.h
+        |           SDL_clipboard.h
+        |           SDL_close_code.h
+        |           SDL_copying.h
+        |           SDL_cpuinfo.h
+        |           SDL_dialog.h
+        |           SDL_egl.h
+        |           SDL_endian.h
+        |           SDL_error.h
+        |           SDL_events.h
+        |           SDL_filesystem.h
+        |           SDL_gamepad.h
+        |           SDL_gpu.h
+        |           SDL_guid.h
+        |           SDL_haptic.h
+        |           SDL_hidapi.h
+        |           SDL_hints.h
+        |           SDL_init.h
+        |           SDL_intrin.h
+        |           SDL_iostream.h
+        |           SDL_joystick.h
+        |           SDL_keyboard.h
+        |           SDL_keycode.h
+        |           SDL_loadso.h
+        |           SDL_locale.h
+        |           SDL_log.h
+        |           SDL_main.h
+        |           SDL_main_impl.h
+        |           SDL_messagebox.h
+        |           SDL_metal.h
+        |           SDL_misc.h
+        |           SDL_mouse.h
+        |           SDL_mutex.h
+        |           SDL_oldnames.h
+        |           SDL_opengl.h
+        |           SDL_opengles.h
+        |           SDL_opengles2.h
+        |           SDL_opengles2_gl2.h
+        |           SDL_opengles2_gl2ext.h
+        |           SDL_opengles2_gl2platform.h
+        |           SDL_opengles2_khrplatform.h
+        |           SDL_opengl_glext.h
+        |           SDL_pen.h
+        |           SDL_pixels.h
+        |           SDL_platform.h
+        |           SDL_platform_defines.h
+        |           SDL_power.h
+        |           SDL_process.h
+        |           SDL_properties.h
+        |           SDL_rect.h
+        |           SDL_render.h
+        |           SDL_revision.h
+        |           SDL_scancode.h
+        |           SDL_sensor.h
+        |           SDL_stdinc.h
+        |           SDL_storage.h
+        |           SDL_surface.h
+        |           SDL_system.h
+        |           SDL_test.h
+        |           SDL_test_assert.h
+        |           SDL_test_common.h
+        |           SDL_test_compare.h
+        |           SDL_test_crc32.h
+        |           SDL_test_font.h
+        |           SDL_test_fuzzer.h
+        |           SDL_test_harness.h
+        |           SDL_test_log.h
+        |           SDL_test_md5.h
+        |           SDL_test_memory.h
+        |           SDL_thread.h
+        |           SDL_time.h
+        |           SDL_timer.h
+        |           SDL_touch.h
+        |           SDL_tray.h
+        |           SDL_version.h
+        |           SDL_video.h
+        |           SDL_vulkan.h
+        |           
+        \---lib
+            +---arm64
+            |       SDL3.dll
+            |       SDL3.lib
+            |       SDL3.pdb
+            |       SDL3_test.lib
+            |       
+            +---x64
+            |       SDL3.dll
+            |       SDL3.lib
+            |       SDL3.pdb
+            |       SDL3_test.lib
+            |       
+            \---x86
+                    SDL3.dll
+                    SDL3.lib
+                    SDL3.pdb
+                    SDL3_test.lib
+                    

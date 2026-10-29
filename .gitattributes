@@ -1,0 +1,41 @@
+# Автоматически определять текстовые файлы
+* text=auto
+
+# Явно указать текстовые файлы (хранить в LF, выгружать в LF)
+*.cpp   text eol=lf
+*.hpp   text eol=lf
+*.h     text eol=lf
+*.c     text eol=lf
+*.cc    text eol=lf
+*.glsl  text eol=lf
+*.vert  text eol=lf
+*.frag  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+.gitignore    text eol=lf
+.gitattributes text eol=lf
+
+# Бинарные файлы — Git не трогает
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.bmp   binary
+*.tga   binary
+*.dds   binary
+*.glb   binary
+*.gltf  binary
+*.fbx   binary
+*.obj   binary
+*.ozz   binary
+*.wav   binary
+*.ogg   binary
+*.mp3   binary
+*.ttf   binary
+*.dll   binary
+*.lib   binary
+*.exe   binary
+*.pdb   binary
+*.ilk   binary

@@ -1,0 +1,20 @@
+{
+  "lighting": {
+    "sunDir": [ 0.4, 0.8, 0.35 ],
+    "sunColor": [ 1.0, 0.92, 0.78 ],
+    "skyColor": [ 0.45, 0.55, 0.60 ],
+    "groundColor": [ 0.35, 0.32, 0.28 ],
+    "toonMidStep": 0.4,
+    "toonShadowStep": 0.15,
+    "rimColor": [ 1.0, 0.8, 0.5 ],
+    "rimPower": 1.2
+  },
+  "postProcess": {
+    "targetHeight": 180,
+    "paletteBits": 6.0,
+    "ditherAmount": 0.5,
+    "bloomStrength": 0.7,
+    "bloomThreshold": 0.85
+  },
+  "clearColor": [ 0.45, 0.55, 0.65, 1.0 ]
+}

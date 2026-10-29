@@ -1,0 +1,23 @@
+# Сборочные директории CMake
+/build/
+/out/
+CMakeCache.txt
+CMakeFiles/
+*.cmake
+
+# Visual Studio временные файлы
+.vs/
+*.suo
+*.user
+*.vcxproj.user
+
+# Бинарники
+*.exe
+*.dll
+*.lib
+*.pdb
+
+*.glb
+
+# Логи и прочее
+*.log
