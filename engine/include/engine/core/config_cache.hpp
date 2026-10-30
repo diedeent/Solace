@@ -65,6 +65,13 @@ namespace Solace {
             return section->data;
         }
 
+        std::vector<std::string> debug_section_names() const {
+            std::vector<std::string> names;
+            names.reserve(m_sections.size());
+            for (const auto& [name, _] : m_sections) names.push_back(name);
+            return names;
+        }
+
         template<typename T>
         bool has() const { return find_section<T>() != nullptr; }
 

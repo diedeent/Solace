@@ -61,7 +61,7 @@ add_library(engine STATIC
     # AI
     include/engine/ai/behavior_tree.hpp
     include/engine/ai/enemy_modules.hpp
-)
+ "src/assets/asset_cache.cpp" "src/animations/animation_state_machine.cpp")
 
 # Прописываем пути к заголовкам всех внешних библиотек
 target_include_directories(engine PUBLIC

@@ -29,7 +29,7 @@ add_executable(Solace
     include/game/world/world_gen.hpp
     src/world/structures.cpp
     src/world/world_gen.cpp
-)
+ "src/scenes/gameplay_scene.cpp")
 
 target_include_directories(Solace PRIVATE
     include

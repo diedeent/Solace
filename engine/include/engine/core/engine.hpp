@@ -1,13 +1,15 @@
 #pragma once
+
 #include <memory>
 #include <functional>
-#include <engine/core/window.hpp>
-#include <engine/graphics/post_process.hpp>
 
+#include <engine/core/window.hpp>
 #include <engine/core/clock.hpp>
 #include <engine/core/event_bus.hpp>
-#include <engine/core/entity_registry.hpp>
 #include <engine/core/config_cache.hpp>
+#include <engine/core/entity_registry.hpp>
+#include <engine/graphics/post_process.hpp>
+#include <engine/scene/scene_manager.hpp>
 
 namespace Solace {
     class Engine {
@@ -15,37 +17,46 @@ namespace Solace {
         Engine();
         virtual ~Engine();
 
-        Engine(const Engine&) = delete;
-        Engine& operator=(const Engine&) = delete;
-
         void run();
 
-        Solace::EventBus& event_bus() { return m_bus; }
-        Solace::Clock& clock() { return m_clock; }
-        Solace::ConfigCache& config() { return m_config; }
-        Solace::EntityRegistry& registry() { return m_registry; }
-
-        using RenderUICallback = std::function<void()>;
-        void setUIRenderCallback(RenderUICallback callback) { m_uiCallback = callback; }
-
+        // ---- Services ----
+        EventBus& event_bus() { return m_bus; }
+        Clock& clock() { return m_clock; }
+        ConfigCache& config() { return m_config; }
+        AssetCache& assets() { return m_assets; }
+        EntityRegistry& registry() { return m_registry; }
         Window& getWindow() { return *m_window; }
         PostProcess* getPostProcess() { return m_post.get(); }
         PostSettings& postSettings() { return m_post->settings(); }
 
+        // ---- Scenes ----
+        SceneManager& scenes() { return *m_scenes; }
+
+        using RenderUICallback = std::function<void()>;
+        void setUIRenderCallback(RenderUICallback cb) { m_uiCallback = std::move(cb); }
+
     protected:
+        // Хуки — вызываются Engine::run. Game переопределяет.
+        virtual void onInit() {}
+        virtual void onShutdown() {}
         virtual void onUpdate(float realDt, float gameplayDt) {}
         virtual void onRender() {}
         virtual void onEvent(const SDL_Event& event) {}
+        virtual void onUIRender() {}
 
     private:
-        Solace::EventBus m_bus; // Должен стоять первым, чтобы жить дольше
-        Solace::Clock   m_clock;
-        Solace::ConfigCache m_config;
-        Solace::EntityRegistry  m_registry;
+        EventBus        m_bus;         // 1
+        Clock           m_clock;       // 2
+        ConfigCache     m_config;      // 3
+        AssetCache      m_assets;      // 4
+        EntityRegistry  m_registry;    // 5
 
-        std::unique_ptr<Window>      m_window;
-        std::unique_ptr<PostProcess> m_post;
-        RenderUICallback             m_uiCallback;
-        bool m_isRunning = true;
+        std::unique_ptr<Window>         m_window;
+        std::unique_ptr<PostProcess>    m_post;
+        std::unique_ptr<SceneContext>   m_ctx;
+        std::unique_ptr<SceneManager>   m_scenes;
+
+        RenderUICallback m_uiCallback;
+        bool             m_isRunning = true;
     };
 }

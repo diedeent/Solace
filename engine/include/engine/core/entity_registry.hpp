@@ -8,6 +8,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
+#include <engine/core/logger.hpp>
 
 #include <engine/core/event_bus.hpp>
 
@@ -134,10 +135,16 @@ namespace Solace {
 
         EntityID create() {
             if (m_next_id >= MAX_ENTITIES) {
-                // 64k за сессию — не должно случаться. Если случилось — баг.
+                Logger::error("EntityRegistry: max entities reached");
                 return INVALID_ENTITY;
             }
             const EntityID id = m_next_id++;
+
+            // Расширяем вектор, если нужно
+            if (id >= m_alive.size()) {
+                m_alive.resize(id + 1, false);
+            }
+
             m_alive[id] = true;
             return id;
         }
@@ -153,12 +160,7 @@ namespace Solace {
 
             for (EntityID id : m_pending_destroy) {
                 // Удаляем все компоненты
-                for (auto& [_, pool] : m_pools) {
-                    (void)_;
-                    // Каждый pool знает свой T — нужен type-erased remove.
-                    // Используем visitor-подход через лямбду, сохранённую в pool.
-                    // См. PoolBase::remove_by_id
-                }
+                for (auto& [_, pool] : m_pools) pool->remove_by_id(id);
                 // Эмитим событие
                 m_bus.emit(EntityDestroyedEvent{ id });
             }
@@ -244,12 +246,7 @@ namespace Solace {
         // ============ Управление ============
 
         void clear() {
-            for (auto& [_, pool] : m_pools) (void)_;
-            // Очищаем все pools через их clear()
-            for (auto& [_, pool] : m_pools) {
-                (void)_;
-                // Нужно вызвать clear() на PoolBase — см. PoolBase::clear
-            }
+            for (auto& [_, pool] : m_pools) pool->clear();
             m_pools.clear();
             m_alive.clear();
             m_pending_destroy.clear();
@@ -277,8 +274,23 @@ namespace Solace {
         template<typename T>
         struct PoolWrapper : PoolBase {
             ComponentPool<T> pool;
+
+            // PoolBase
             void clear() override { pool.clear(); }
             void remove_by_id(EntityID id) override { pool.remove(id); }
+
+            // Проброс к ComponentPool (иначе add_component/get_component/has_component не скомпилируются)
+            T* add(EntityID id, T component) { return pool.add(id, std::move(component)); }
+            T* get(EntityID id) { return pool.get(id); }
+            const T* get(EntityID id) const { return pool.get(id); }
+            bool     has(EntityID id) const { return pool.has(id); }
+            void     remove(EntityID id) { pool.remove(id); }
+            size_t   count() const { return pool.count(); }
+
+            template<typename Fn>
+            void for_each(Fn&& fn) { pool.for_each(std::forward<Fn>(fn)); }
+            template<typename Fn>
+            void for_each(Fn&& fn) const { pool.for_each(std::forward<Fn>(fn)); }
         };
 
         template<typename T>

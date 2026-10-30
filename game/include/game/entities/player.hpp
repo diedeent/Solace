@@ -7,7 +7,7 @@
 #include <engine/utils/math_utils.hpp>
 #include <engine/graphics/camera.hpp>
 
-namespace App { enum class CameraMode; }
+
 
 namespace App {
 
