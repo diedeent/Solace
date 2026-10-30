@@ -77,7 +77,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     ozz-animation
     GIT_REPOSITORY https://github.com/guillaumeblanc/ozz-animation.git
-    GIT_TAG master
+    GIT_TAG 0.17.0
 )
 
 # Загружаем всё в кэш CMake
