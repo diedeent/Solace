@@ -73,6 +73,7 @@ target_include_directories(engine PUBLIC
 
 # Линкуем движок с системными и сторонними библиотеками
 target_link_libraries(engine PUBLIC
+    nlohmann_json::nlohmann_json
     SDL3::SDL3
     assimp::assimp
     imgui
@@ -82,8 +83,4 @@ target_link_libraries(engine PUBLIC
     ozz_base
     ozz_geometry
     OpenGL::GL
-)
-
-target_link_libraries(engine PRIVATE
-    nlohmann_json::nlohmann_json
 )

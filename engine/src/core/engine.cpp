@@ -7,6 +7,13 @@
 
 namespace Solace {
     Engine::Engine() : m_registry(m_bus) {
+
+        // Config hot-reload: F5 → emit<ConfigReloadRequestEvent> → reload → emit<ConfigReloadedEvent>
+        m_bus.subscribe<ConfigReloadRequestEvent>([this](const ConfigReloadRequestEvent&) {
+            const bool ok = m_config.reload();
+            m_bus.emit(ConfigReloadedEvent{ ok });
+            });
+
         Logger::info("Initializing Solace Engine (Clean Core)...");
         m_window = std::make_unique<Window>("Solace", 1280, 720);
         m_post = std::make_unique<PostProcess>();

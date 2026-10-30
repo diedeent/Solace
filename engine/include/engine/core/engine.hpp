@@ -7,6 +7,7 @@
 #include <engine/core/clock.hpp>
 #include <engine/core/event_bus.hpp>
 #include <engine/core/entity_registry.hpp>
+#include <engine/core/config_cache.hpp>
 
 namespace Solace {
     class Engine {
@@ -21,6 +22,7 @@ namespace Solace {
 
         Solace::EventBus& event_bus() { return m_bus; }
         Solace::Clock& clock() { return m_clock; }
+        Solace::ConfigCache& config() { return m_config; }
         Solace::EntityRegistry& registry() { return m_registry; }
 
         using RenderUICallback = std::function<void()>;
@@ -38,6 +40,7 @@ namespace Solace {
     private:
         Solace::EventBus m_bus; // Должен стоять первым, чтобы жить дольше
         Solace::Clock   m_clock;
+        Solace::ConfigCache m_config;
         Solace::EntityRegistry  m_registry;
 
         std::unique_ptr<Window>      m_window;

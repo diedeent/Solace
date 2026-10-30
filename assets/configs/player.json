@@ -1,0 +1,18 @@
+{
+  "stats": {
+    "maxHealth": 100.0,
+    "maxStamina": 100.0,
+    "staminaRegen": 25.0
+  },
+  "movement": {
+    "speed": 5.0,
+    "dashSpeed": 17.5,
+    "dashDuration": 0.25,
+    "dashCooldown": 0.5,
+    "dashStaminaCost": 25.0
+  },
+  "animation": {
+    "defaultClip": "idle",
+    "fadeTime": 0.2
+  }
+}

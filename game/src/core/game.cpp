@@ -11,6 +11,7 @@
 #include <cmath>
 #include <engine/core/settings_manager.hpp>
 #include <engine/graphics/camera.hpp>
+#include <game/configs/player_config.hpp>
 
 
 namespace App {
@@ -29,6 +30,17 @@ namespace App {
         ImGui_ImplOpenGL3_Init("#version 430 core");
 
         Solace::DebugOverlay::init();
+
+        // Регистрация типизированных секций
+        config().register_section<App::PlayerConfig>("player",
+            [](const nlohmann::json& j, App::PlayerConfig& out) {
+                return App::PlayerConfig::parse(j, out);
+            });
+
+        // Загрузка с диска
+        if (!config().load("assets/configs")) {
+            Solace::Logger::error("Game: failed to load configs, using defaults");
+        }
 
         setUIRenderCallback([this]() { renderUI(); });
         Solace::DebugOverlay::registerCommand("fps", [](const std::vector<std::string>& args) {
@@ -103,12 +115,7 @@ namespace App {
     }
 
     void Game::onUpdate(float realDt, float gameplayDt) {
-        const bool* keyStates = SDL_GetKeyboardState(nullptr);
-        static bool f5PressedLastFrame = false;
-        if (keyStates[SDL_SCANCODE_F5] && !f5PressedLastFrame) {
-            reloadSettings();
-        }
-        f5PressedLastFrame = keyStates[SDL_SCANCODE_F5];
+        // F5 теперь в onEvent, тут ничего про F5
 
         if (m_player) {
             m_player->update(gameplayDt, m_cameraMode);
@@ -176,12 +183,17 @@ namespace App {
     void Game::onEvent(const SDL_Event& event) {
         ImGui_ImplSDL3_ProcessEvent(&event);
 
-        if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_GRAVE) {
-            Solace::DebugOverlay::toggle();
-            SDL_SetWindowRelativeMouseMode(
-                getWindow().getSDLWindow(),
-                !Solace::DebugOverlay::isOpen()
-            );
+        if (event.type == SDL_EVENT_KEY_DOWN) {
+            if (event.key.scancode == SDL_SCANCODE_GRAVE) {
+                Solace::DebugOverlay::toggle();
+                SDL_SetWindowRelativeMouseMode(
+                    getWindow().getSDLWindow(),
+                    !Solace::DebugOverlay::isOpen()
+                );
+            }
+            if (event.key.scancode == SDL_SCANCODE_F5 && !event.key.repeat) {
+                event_bus().emit(Solace::ConfigReloadRequestEvent{});
+            }
         }
     }
 
