@@ -46,9 +46,7 @@ namespace Solace {
         // Bone names в порядке ozz (для маппинга)
         std::vector<std::string> bone_names;
 
-        bool has_skeleton() const {
-            return skeleton.num_joints() > 0;
-        }
+        bool has_skeleton() const { return skeleton.num_joints() > 0; }
 
         // Debug
         size_t total_vertices() const;

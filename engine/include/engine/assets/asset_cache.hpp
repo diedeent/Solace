@@ -34,6 +34,9 @@ namespace Solace {
         size_t model_count() const { return m_models.size(); }
         std::vector<std::string> debug_model_paths() const;
 
+        bool load_skeleton_ozz(ModelAsset& asset, const std::string& path);
+        bool load_animation_ozz(ModelAsset& asset, const std::string& name, const std::string& path);
+
     private:
         std::unordered_map<std::string, std::shared_ptr<ModelAsset>> m_models;
     };

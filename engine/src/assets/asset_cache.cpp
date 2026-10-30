@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
+#include <ozz/base/io/archive.h>
+#include <ozz/base/io/stream.h>
 #include <ozz/animation/runtime/local_to_model_job.h>
-//#include <ozz/base/maths/simd_math.h>
+#include <cstring>
 #include <ozz/base/maths/soa_transform.h>
 
 namespace Solace {
@@ -47,6 +49,66 @@ namespace Solace {
             }
         }
     } // namespace
+
+
+#include <ozz/base/io/archive.h>
+#include <ozz/base/io/stream.h>
+#include <ozz/animation/runtime/local_to_model_job.h>
+#include <cstring>
+
+    bool AssetCache::load_skeleton_ozz(ModelAsset& asset, const std::string& path) {
+        ozz::io::File file(path.c_str(), "rb");
+        if (!file.opened()) {
+            Logger::error("AssetCache: failed to open skeleton: ", path);
+            return false;
+        }
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Skeleton>()) {
+            Logger::error("AssetCache: invalid skeleton file: ", path);
+            return false;
+        }
+        archive >> asset.skeleton;
+
+        // Вычисляем inverse bind poses (как в Animator::loadSkeleton)
+        std::vector<ozz::math::SoaTransform> restLocals(asset.skeleton.num_soa_joints());
+        std::memcpy(restLocals.data(), asset.skeleton.joint_rest_poses().data(),
+            restLocals.size() * sizeof(ozz::math::SoaTransform));
+
+        std::vector<ozz::math::Float4x4> restModels(asset.skeleton.num_joints());
+        ozz::animation::LocalToModelJob ltm;
+        ltm.skeleton = &asset.skeleton;
+        ltm.input = ozz::make_span(restLocals);
+        ltm.output = ozz::make_span(restModels);
+        ltm.Run();
+
+        asset.inverse_bind_poses.resize(asset.skeleton.num_joints());
+        for (size_t i = 0; i < asset.inverse_bind_poses.size(); ++i) {
+            asset.inverse_bind_poses[i] = ozz::math::Invert(restModels[i]);
+        }
+
+        Logger::info("AssetCache: skeleton loaded: ", path, " (", asset.skeleton.num_joints(), " joints)");
+        return true;
+    }
+
+    bool AssetCache::load_animation_ozz(ModelAsset& asset, const std::string& name, const std::string& path) {
+        ozz::io::File file(path.c_str(), "rb");
+        if (!file.opened()) {
+            Logger::error("AssetCache: failed to open animation: ", path);
+            return false;
+        }
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Animation>()) {
+            Logger::error("AssetCache: invalid animation file: ", path);
+            return false;
+        }
+
+        ozz::animation::Animation anim;
+        archive >> anim;
+        asset.animations.emplace(name, std::move(anim));
+
+        Logger::info("AssetCache: animation '", name, "' loaded (", asset.animations.at(name).duration(), "s)");
+        return true;
+    }
 
     std::shared_ptr<ModelAsset> AssetCache::get_model(const std::string& path) {
         auto it = m_models.find(path);

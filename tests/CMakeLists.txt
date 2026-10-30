@@ -14,10 +14,9 @@ include(Catch)
 
 # ---- Исполняемый файл тестов ----
 add_executable(SolaceTests
-    #test_main.cpp
     test_entity_registry.cpp
     test_event_bus.cpp
-    #test_animation_state_machine.cpp
+    test_animation_state_machine.cpp
 )
 
 target_link_libraries(SolaceTests PRIVATE
@@ -26,4 +25,4 @@ target_link_libraries(SolaceTests PRIVATE
 )
 
 # Автоматически регистрирует все TEST_CASE из SolaceTests в CTest
-catch_discover_tests(SolaceTests)
+catch_discover_tests(SolaceTests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
