@@ -2,7 +2,7 @@
 #include <engine/utils/math_utils.hpp>
 
 namespace App {
-    enum class CameraMode { Default, Noclip };
+    enum class CameraMode { Default, ThirdPerson, Noclip };
 
     class Camera {
     public:
@@ -19,5 +19,6 @@ namespace App {
         Solace::Mat4 m_viewMatrix;
         Solace::Mat4 m_projMatrix;
         float m_camX = 0.0f, m_camY = 0.0f, m_camZ = 0.0f;
+        bool  m_initialized = false;
     };
 }

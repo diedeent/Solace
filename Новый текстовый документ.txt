@@ -1,0 +1,607 @@
+Solace: Engineering Handbook v3.0
+Принципы, правила, структура, процесс
+Часть 0: Философия проекта
+Что мы строим
+Кастомный 2.5D Action-RPG движок на C++20/OpenGL 4.3 для инди-команды (1-5 человек). Долгосрочная цель — Souls-like боёвка с процедурным миром, короткая — вертикальный срез, доказывающий, что геймплей весёлый.
+
+Как строим
+Три приоритета в порядке убывания:
+
+Работает — собралось, запустилось, играется.
+
+Читается — новый человек (или ты через месяц) понимает за 5 минут.
+
+Красиво — SOLID, паттерны, элегантность.
+
+Красиво не жертвует работает. Если паттерн требует 3 дня рефакторинга, а фича нужна завтра — выбери фичу. Потом отрефакторишь.
+
+Что НЕ строим
+ECS общего назначения (entt, flecs) — overkill для 100 сущностей
+
+Свой физический движок (пока хватает capsule sweep)
+
+Сетевой код (сначала соло)
+
+Редактор уровней (сначала JSON + procedural)
+
+Скриптовый язык (сначала C++)
+
+Любое расширение scope = явное решение, а не «раз уж я здесь».
+
+Часть 1: Архитектурные принципы (hard rules)
+Это не рекомендации, а жёсткие правила. Нарушение = code review reject.
+
+1.1 — Layering: зависимости только вниз
+7 слоёв, нумерованных 0–6. Модуль N может включать заголовки слоёв 0..N-1, но не N..6.
+
+Layer	Что	Может зависеть от
+0	Platform (SDL3, OpenGL, ozz, Assimp)	—
+1	Core Utilities (Logger, Math, EventBus, Clock, Config)	0
+2	Platform Wrappers (Window, Shader, Mesh, Texture)	0–1
+3	Data Structures (EntityRegistry, Components, Assets, Scenes)	0–2
+4	Systems (Movement, Damage, Hitbox, AI, Audio, VFX)	0–3
+5	Orchestration (Application, SceneManager, UILayer)	0–4
+6	Game-specific (Game, GameplayScene, PlayerController)	0–5
+Примеры нарушений:
+
+❌ RenderComponent (Layer 3) знает про GLuint — это Layer 0
+
+❌ DamageSystem (Layer 4) вызывает AudioSystem::play() напрямую — тот же Layer 4 (cross-dependency)
+
+❌ Application (Layer 5) знает про конкретный Enemy — Layer 6
+
+Проверка: в CMakeLists.txt engine разбит на подбиблиотеки с явными зависимостями. core не линкуется с graphics, systems не линкуется с application. Если слинковалось — ошибка.
+
+1.2 — Dependency Injection вместо singletons
+Никаких static полей с состоянием. Ни EventBus::instance(), ни Config::get().
+
+Все сервисы передаются явно через конструктор:
+
+text
+Application
+  ├── EventBus (owned)
+  ├── EntityRegistry (owned)
+  ├── AssetCache (owned)
+  ├── Clock (owned)
+  └── SceneManager (owned)
+        └── Scene::onUpdate(dt, registry, bus, assets)
+              └── System::update(dt, registry, bus)
+Почему:
+
+Тесты без глобалов возможны
+
+Два Scene одновременно (loading + gameplay)
+
+Mock для проверки «был ли emit»
+
+1.3 — Events вместо прямых вызовов между системами
+Системы одного слоя не знают друг о друге. Всё через EventBus.
+
+Что event, а что прямой вызов:
+
+Event (decoupled)	Прямой вызов (tight)
+DamageEvent → HealthSystem, VFXSystem, AudioSystem, UISystem	CollisionWorld::moveCapsule() (чистая функция)
+HitStopEvent → Application (Clock)	Math::lerp()
+SpawnParticleEvent → VFXSystem	EntityRegistry::getComponent<T>()
+PlaySoundEvent → AudioSystem	Shader::setMat4() (внутри RenderSystem)
+DeathEvent → SceneManager (despawn)	Logger::info()
+AnimationEventTriggered → CombatSystem	Config::getPlayer() (typed cache)
+Правило: если системы не должны знать друг о друге — event. Если одна использует API другой (рендер использует shader) — прямой вызов.
+
+Anti-pattern: AudioSystem::playSound() вызывается из DamageSystem::handleDamage(). Через месяц: «почему нет звука урона от яда?» — потому что handleDamage обрабатывает только физический. Правильно: DamageSystem эмитит PlaySoundEvent, AudioSystem сам решает, какой звук для какого damageType.
+
+1.4 — Config: typed structs, не string lookups
+Запрещено: Config::get("player.stats.maxHealth") в рантайме. String lookup + JSON parsing на каждом кадре — 100× медленнее field access.
+
+Правильно: одна загрузка → типизированные структуры в памяти.
+
+ConfigCache — держит PlayerConfig, EnemyConfig[N], WeaponConfig[N]
+
+Загрузка при старте и по F5
+
+Системы читают cfg.player.movement.speed — field access
+
+JSON — только для hot-reload, не для рантайм-логики
+
+Правило: каждое поле с числом, которое может измениться — в JSON. Но читается один раз при загрузке.
+
+1.5 — Components — только данные
+POD-компоненты. Никаких virtual, методов, указателей на системы.
+
+Разрешено	Запрещено
+float, int, glm::vec3, glm::quat	std::function
+EntityID	Entity* (dangling)
+std::shared_ptr<Asset> (shared, immutable)	std::unique_ptr<PlayerModel> (Layer 0 know-how)
+enum class	virtual методы
+Почему: компонент — это снимок состояния. Логика в системах.
+
+Исключение: std::shared_ptr на asset — это handle, не логика. AnimationComponent может хранить std::vector skinning matrices — данные, не логика.
+
+1.6 — Shared asset ownership
+Правило: unique_ptr<Model> в компоненте = нарушение. 20 врагов = 20 загрузок в VRAM.
+
+Правильно:
+
+ModelAsset — shared, immutable, содержит Mesh + Skeleton + InverseBind + Animations
+
+AssetCache — unordered_map<path, shared_ptr<ModelAsset>>, дедупликация
+
+RenderComponent — shared_ptr<ModelAsset> (handle)
+
+AnimationComponent — per-instance runtime (currentTime, sampling context, skinning matrices)
+
+GLuint boneSSBO — per-instance (Layer 0 handle, но живёт в AnimationComponent, не в RenderComponent)
+
+Эффект: 20 врагов × 50 KB (per-instance) вместо × 10 MB.
+
+1.7 — Deferred mutation (no immediate destroy)
+Правило: registry.destroy(id) не освобождает память немедленно. Ставит в очередь.
+
+Почему: если в HitboxSystem::update враг умер, а ParticleSystem::render в том же кадре обращается к нему — dangling pointer. Классика.
+
+Workflow:
+
+Система → registry.destroy(id) → m_pendingDestroy.push_back(id)
+
+Application::run → после scene->update() → registry.processDestroy()
+
+Все isAlive(id) возвращают false с момента destroy(), но память жива до processDestroy()
+
+Компоненты не тронуты до processDestroy — можно безопасно читать (forEach фильтрует isDead, getComponent возвращает nullptr для мёртвых)
+
+Исключение: clear() в Scene::onExit — немедленная очистка, потому что сцена выгружается целиком.
+
+1.8 — Per-system time
+Правило: глобальный timeScale не влияет на UI, input, camera lerp.
+
+Три времени в игре:
+
+Время	Кто использует	HitStop	Pause
+Real	UI, input, camera shake, ImGui	работает	работает
+Gameplay	Анимации, физика, AI, движение	замирает	замирает
+Slow-mo	Опционально для боссов/спецэффектов	—	—
+Реализация: GameplayClock вычисляет gameplayDt, Application даёт realDt и gameplayDt явно каждой системе. UI получает realDt, MovementSystem — gameplayDt.
+
+HitStop: gameplayDt = 0 для N кадров (6–12 для обычного удара). Не timeScale = 0.1 — тогда анимации дёргаются, физика теряет точность.
+
+1.9 — Explicit ownership (RAII везде)
+Ситуация	Правильно	Запрещено
+Система в Scene	std::unique_ptr<System>	raw new/delete
+Asset	std::shared_ptr<ModelAsset>	Model* + ручной refcount
+Entity	EntityID (uint32)	Entity*
+GL resource	RAII wrapper (Shader, Mesh)	голый GLuint в бизнес-логике
+Component	по значению в ComponentPool	указатель
+Правило: если у тебя голый new в новом коде — code review reject. Исключение: glGenBuffers — оберни в класс.
+
+1.10 — Debug-first development
+Правило: каждая новая система обязана иметь визуализацию через debug overlay.
+
+Без дебага ты:
+
+Тратишь 3 часа на «почему не работает»
+
+Не видишь, что AI стоит в стене
+
+Не знаешь, что hitbox не там, где кажется
+
+Не замечаешь, что анимация играет в 2× медленнее
+
+Для каждой системы:
+
+Collision → рендер всех капсул и AABB
+
+Hitbox → рендер активного хитбокса + всех attack windows
+
+AI → стрелки от врага к цели, радиусы зон
+
+Damage → floating numbers + последние 10 событий
+
+Animation → текущий клип, fade progress, hitbox windows
+
+EventBus → лог последних 50 событий в реальном времени
+
+ECS → инспектор всех сущностей и компонентов
+
+Часть 2: Структура папок и модулей
+2.1 — Дерево
+text
+engine/
+├── include/engine/
+│   ├── core/          # Layer 1: event_bus, clock, config, logger, math
+│   ├── platform/      # Layer 2: window, shader, mesh, texture
+│   ├── assets/        # Layer 3: model_cache, texture_cache, audio_cache
+│   ├── ecs/           # Layer 3: entity_registry, component_pool
+│   ├── scene/         # Layer 3–5: scene, scene_manager
+│   ├── animation/     # Layer 4: animation_state_machine, animation_event
+│   ├── physics/       # Layer 4: collision_world, capsule
+│   ├── graphics/      # Layer 4: renderer, post_process, particle_system
+│   ├── audio/         # Layer 4: audio_engine, sound_pool
+│   ├── ui/            # Layer 5: hud, debug_overlay
+│   └── application.hpp  # Layer 5
+└── src/ (зеркально)
+
+game/
+├── include/game/
+│   ├── components/    # Layer 3: transform, health, movement, combat, ...
+│   ├── systems/       # Layer 4: movement, damage, hitbox, ai, audio_react, vfx_react
+│   ├── scenes/        # Layer 5: gameplay_scene, menu_scene
+│   ├── events/        # Layer 3: damage_events, ui_events, ...
+│   ├── configs/       # типы для ConfigCache (player_config, enemy_config)
+│   └── core/game.hpp  # Layer 6
+└── src/
+
+assets/
+├── configs/           # JSON: player, enemies, weapons, animations, transitions
+├── models/            # .glb (со встроенными текстурами)
+├── animations/        # .ozz (skeleton + clips)
+├── audio/             # .wav/.ogg
+└── shaders/           # .glsl
+2.2 — Правила размещения
+Вопрос	Ответ
+Класс знает про GL?	platform/ или graphics/
+Класс знает про игру (Player, Enemy)?	game/ — никогда в engine
+Класс хранит данные?	ecs/components или assets/
+Класс обрабатывает данные?	systems/
+Класс управляет другими?	application или scene
+2.3 — CMake organization
+Один engine CMake — но с явными подбиблиотеками:
+
+text
+add_library(engine_core     STATIC ...)   # Layer 1
+add_library(engine_platform STATIC ...)   # Layer 2
+add_library(engine_data     STATIC ...)   # Layer 3
+add_library(engine_systems  STATIC ...)   # Layer 4
+add_library(engine_ui       STATIC ...)   # Layer 5
+target_link_libraries(engine_core      PRIVATE ...)
+target_link_libraries(engine_platform  PUBLIC engine_core)
+target_link_libraries(engine_data      PUBLIC engine_core engine_platform)
+target_link_libraries(engine_systems   PUBLIC engine_data ...)
+Если engine_core не собрался без SDL3 — архитектура уже нарушена.
+
+Часть 3: Правила написания кода
+3.1 — Naming
+Что	Стиль	Пример
+Классы	PascalCase	EntityRegistry
+Функции/переменные	snake_case	get_component
+Поля	m_snake_case	m_event_bus
+Константы	UPPER_SNAKE	MAX_ENTITIES
+Enum class	PascalCase	DamageType::Fire
+Файлы	snake_case.hpp/cpp	event_bus.hpp
+Единый стиль во всём проекте. Не смешивай snake_case и camelCase.
+
+3.2 — Headers
+#pragma once — везде
+
+Forward declarations, где возможно
+
+<cstdint> / <memory> — минимум в заголовке
+
+<SDL3/SDL.h>, <glad/glad.h>, <ozz/...> — только в .cpp, не в include/
+
+Проверка: grep -r "#include <glad" engine/include/ = 0
+
+3.3 — Const-correctness
+Все геттеры — const
+
+const T& для больших объектов
+
+T* только для опциональных (никогда не nullptr если не опционально)
+
+T& для обязательных
+
+3.4 — Error handling
+Ситуация	Поведение
+Ошибка в hot-path (update, render)	Log + continue (nullptr check, default)
+Ошибка в init (config, asset)	Log + exception, Application ловит и падает с сообщением
+Ошибка в hot-reload	Log warning + откат к предыдущему значению
+Ошибка в user input	Игнорировать
+Никогда: assert в релизе. throw из деструктора. Проглатывание ошибок без лога.
+
+3.5 — Logging
+4 уровня: trace, debug, info, warn, error.
+
+error — только реальные проблемы (не «файл не найден» при первом запуске — это warn)
+
+debug — только то, что нужно при отладке ("Animator: time=...")
+
+info — старт/стоп систем, загрузка ассетов
+
+Никогда не логируй в update без флага (спам = просадка FPS)
+
+Правило: Logger::info в update = code review reject.
+
+3.6 — Tests (unit)
+Не всё нужно тестировать. Приоритет:
+
+Обязательно: EventBus, EntityRegistry, ComponentPool, ConfigCache parse, Collision (math)
+
+Желательно: AnimationStateMachine transitions (с mock skeleton), DamageSystem formula
+
+Не нужно: System::update (интеграционные), Renderer (визуальные)
+
+Правило: если функция чистая (вход → выход) — тест. Если функция вызывает gl* — мок API или пропусти.
+
+Часть 4: Процесс работы
+4.1 — Git workflow
+Ветки:
+
+main — стабильно, работает
+
+dev — интеграция
+
+feature/xyz — новая фича
+
+fix/xyz — багфикс
+
+refactor/xyz — рефакторинг
+
+Коммиты по Conventional Commits:
+
+text
+feat(event_bus): add type-erased handler storage
+fix(ecs): deferred destroy prevents use-after-free
+refactor(animation): split layered blending into separate method
+docs(handbook): phase 1 acceptance criteria
+Правило: один коммит = одна логическая единица. WIP не пушим в main.
+
+4.2 — Размер PR
+Идеальный PR:
+
+≤ 400 строк изменений
+
+Одна фича или один фикс
+
+Тесты (если применимо)
+
+Скриншот / логи / видео (для UI/анимации)
+
+Обновлённый acceptance checklist
+
+Если PR > 600 строк — режь на два.
+
+4.3 — Code review checklist
+Перед merge:
+
+□ Собирается без warnings (-Wall -Wextra -Werror в debug)
+□ Запускается, FPS не упал
+□ Layering не нарушен (grep на #include из высших слоёв)
+□ Нет static state с данными
+□ Components — POD (grep на unique_ptr в components)
+□ Config params — typed structs, не string lookup в update
+□ Debug visualization для новой системы
+□ Acceptance criteria из ТЗ выполнены
+□ Обновлён CHANGELOG.md
+4.4 — Playtest cadence
+Правило: каждые 2 недели — playtest с внешним человеком (или самим собой через 2 дня).
+
+Цель: получить «весело / скучно», не «баги». Баги — отдельно.
+
+Формат:
+
+15 мин игры
+
+5 мин вопросов: «Что понравилось? Что раздражало? Что было непонятно?»
+
+Лог всех болей → в беклог
+
+Anti-pattern: показывать друзьям «вот у меня теперь пул объектов для 1000 пуль» без playable демо. Игроку всё равно, что у тебя в коде.
+
+Часть 5: Дорожная карта
+Phase 0 — Foundation (5–6 дней)
+Цель: архитектура готова, игра работает как раньше.
+
+Шаг	Что	Acceptance
+0.1	EventBus (DI, type-erased)	subscribe/emit/queue работают, есть unit-тест
+0.2	Clock separation	UI не замедляется при hitstop
+0.3	EntityRegistry (dense array, deferred destroy)	1000 сущностей × 1000 кадров без просадок
+0.4	ConfigCache (typed structs, F5 reload)	Hot-reload без рестарта
+0.5	Scene lifecycle (enter/exit/clear)	Gameplay ↔ Menu без утечек (проверено sanitizer'ом)
+0.6	Debug overlay (ImGui, F1)	ECS inspector, event log, collision viz
+0.7	Component definitions (POD headers)	Все компоненты — только данные
+Не начинаем Phase 1, пока:
+
+□ Все шаги 0.1–0.7 прошли acceptance
+□ Code review от «второго пилота» (или самообзор через 2 дня)
+□ git tag v0.1-foundation, CHANGELOG.md обновлён
+Phase 1 — Combat Vertical Slice (20–25 дней)
+Цель: «Игрок бегает → атакует куб → куб получает урон → умирает → звучит звук, летят искры, трясётся камера».
+
+Шаг	Что	Acceptance
+1.1	AnimationStateMachine (layered, crossfade, events)	Idle↔Run без рывков, Attack не ломает Run, hitbox на кадр 8
+1.2	AnimationEvent subscriptions	Звук/партикл/hitbox по имени события, не по кадру
+1.3	Collision (capsule slide, uniform grid)	Игрок скользит по стене, не застревает
+1.4	DamageSystem (единая система)	Урон, i-frames, смерть через 2с
+1.5	Hitbox (bone-attached)	Попадание только в кадры 8-14, один удар = один hit
+1.6	HitStop + Camera Shake (noise)	Удар → 0.1с стоп, камера трясётся, UI работает
+1.7	AudioSystem (miniaudio, positional)	Звук удара в позиции hitbox, громкость по расстоянию
+1.8	ParticleSystem (instanced)	Искры при ударе, 4096 частиц без просадок
+1.9	HUD (HP, stamina, damage numbers)	Игрок видит, что происходит
+1.10	Integration + playtest	3 внешних тестера: «весело / скучно»
+Не начинаем Phase 2, пока:
+
+□ Все 10 шагов прошли acceptance
+□ 3 playtest'а с положительным фидбеком «весело»
+□ git tag v0.2-slice
+Phase 2 — Content & AI (10–15 дней)
+Цель: 3–5 врагов с разным поведением, кооп-тест.
+
+Ключевое:
+
+AI (FSM + A* pathfinding + sensory system)
+
+3 типа врагов (melee, ranged, elite)
+
+Group behavior (не толпятся в одну точку)
+
+Спавн-система (waves)
+
+Status effects (burn, freeze, stun)
+
+Phase 3 — World (15–20 дней)
+Цель: процедурный мир.
+
+Ключевое:
+
+Perlin terrain + chunk streaming
+
+Heightfield collision
+
+Object placement (деревья, камни)
+
+POI (сундуки, алтари)
+
+Optimization (LOD, culling)
+
+Phase 4 — Polish & Content (20+ дней)
+Цель: играбельная альфа.
+
+Ключевое:
+
+Save/Load
+
+Меню, пауза, настройки
+
+Больше контента (5+ врагов, 2 босса)
+
+Баланс через JSON
+
+Bug fixing
+
+Часть 6: Anti-patterns (что НЕ делать)
+6.1 — Архитектурные
+Anti-pattern	Почему плохо	Правильно
+static EventBus	Не тестируется, не масштабируется	DI
+unique_ptr<Model> в компоненте	VRAM × N	shared_ptr
+HealthSystem + DamageSystem	Пересечение ответственности	Один DamageSystem
+RenderComponent знает про GL	Layering нарушен	GL только в RenderSystem
+break on hit в collision	Застревание в углах	Iterative slide
+Immediate destroy	UAF в том же кадре	Deferred
+Config::get("...") в update	String hash × 60 FPS	Typed cache
+sin(time * 40) shake	Предсказуемая вибрация	Perlin noise
+timeScale = 0.1 для hitstop	Ломает физику, UI	gameplayDt = 0
+6.2 — Кодовые
+Anti-pattern	Правильно
+Голый new/delete	unique_ptr, shared_ptr
+assert в релизе	Logger::error + graceful
+throw из деструктора	try/catch внутри
+#include <glad.h> в include/	только в .cpp
+Logger::info в update	Logger::debug, один раз
+virtual в компонентах	логика в системах
+std::function в hot-path	function pointer / template
+6.3 — Процессные
+Anti-pattern	Правильно
+PR > 1000 строк	Режь на 2–3
+WIP push в main	feature-ветки
+Играешь сам 3 месяца	playtest каждые 2 недели
+«Вот у меня 1000 пуль в пуле»	«Вот играбельный бой»
+«Потом отрефакторю»	Сейчас или в беклог
+«Добавлю ещё одну систему»	Сначала вертикальный срез
+Часть 7: Критерии готовности системы
+Для любой новой системы перед merge:
+
+Функциональные
+□ Работает по acceptance criteria из ТЗ
+□ Не ломает существующее (regression test)
+□ FPS не упал более чем на 5%
+Архитектурные
+□ Слой не нарушен (#include только из низших)
+□ Нет static state
+□ Нет string lookups в hot-path
+□ Components — POD (если применимо)
+□ Explicit ownership (RAII)
+Качество кода
+□ Проходит review checklist
+□ Понятные имена
+□ Нет magic numbers (константы в JSON или named constants)
+□ Логи на уровне debug (не info)
+Отладка
+□ Визуализация в debug overlay
+□ Логирование ключевых событий
+□ Работает F1 → inspector
+Документация
+□ Обновлён CHANGELOG.md
+□ Обновлён assets/configs/*.json (если применимо)
+□ Обновлена эта handbook (если архитектурное решение)
+Часть 8: Процесс «начать новую фичу»
+Порядок действий строго:
+
+Написать acceptance criteria (3–5 пунктов: «что должно работать»)
+
+Написать 1 unit-тест (если функция чистая) или план проверки
+
+Реализовать минимально (Happy path, без edge cases)
+
+Проверить acceptance на практике (запустить игру)
+
+Добавить debug viz (что видно, когда работает / не работает)
+
+Написать edge case тесты (границы, ошибки)
+
+Оптимизировать, если FPS упал
+
+Code review (self или second pair)
+
+Merge в dev
+
+Никогда не начинай с шага 3. Если ты сразу пишешь код — ты не знаешь, что «готово».
+
+Часть 9: Что делать если что-то сломалось
+Порядок диагностики
+Собрать логи: Logger::info / error — что последнее было?
+
+Проверить debug overlay: F1 → ECS inspector, collision viz, event log
+
+Проверить конфиги: F5 reload — может JSON битый?
+
+Bisect по коммитам: git log --oneline → git bisect — когда сломалось?
+
+Минимальный repro: отключить всё кроме системы, проверить изолированно
+
+Если утечка памяти
+Прогнать под AddressSanitizer (-fsanitize=address)
+
+Проверить EntityRegistry::clear — все ли компоненты освобождены
+
+Проверить shared_ptr cycles (asset ↔ system)
+
+Если просадка FPS
+Открыть debug overlay → FPS graph
+
+Отключить по одной системе (ImGui checkbox) — найти виновника
+
+Профилировать Tracy Profiler (или chrono вручную)
+
+Проверить draw calls (RenderDoc)
+
+Часть 10: Итог и следующий шаг
+Что ты получаешь от v3.0
+Принципы, по которым любой код проходит или нет
+
+Правила layering, которые нельзя нарушить
+
+Процесс, который не даёт скатиться в спагетти
+
+Acceptance criteria, по которым видно «готово / не готово»
+
+Anti-patterns, которые экономят месяцы
+
+Что делать прямо сейчас
+Phase 0, шаг 0.1 — EventBus.
+
+Это 6 часов работы, которые разблокируют всё остальное. После него:
+
+DamageEvent не требует, чтобы DamageSystem знал про ParticleSystem
+
+HitStopEvent не требует, чтобы DamageSystem знал про Clock
+
+Каждая система — изолирована, тестируема, заменяема
+
+Без EventBus ты не сможешь сделать ни Damage, ни Hitbox, ни Audio, ни UI — они будут жёстко связаны.
+
+Готов начать? Скажи — и я дам:
+
+Точную спецификацию EventBus (API без кода, только контракт)
+
+План 0.1 (какие события в первую очередь, какой тип, когда emit vs queue)
+
+Acceptance checklist для 0.1

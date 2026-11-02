@@ -1,5 +1,5 @@
 #include <engine/core/engine.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <engine/debug/debug_overlay.hpp>
 #include <engine/systems/input_system.hpp>
 
@@ -13,9 +13,12 @@ namespace Solace {
     Engine::Engine()
         : m_registry(m_bus)
     {
-        Logger::info("Initializing Solace Engine...");
+        Solace::Logger::init("logs/solace.log", Solace::LogLevel::Trace);
+        SOLACE_INFO("Initializing Solace Engine...");
         m_window = std::make_unique<Window>("Solace", 1280, 720);
         m_post = std::make_unique<PostProcess>();
+
+        
 
         m_ctx = std::make_unique<SceneContext>(
             m_bus, m_clock, m_config, m_registry, m_assets,
@@ -48,13 +51,13 @@ namespace Solace {
 
             DebugOverlay::init();
         }
-
-        onInit();  // ← scene initialization
     }
 
     void Engine::run() {
-        Logger::info("Entering main loop...");
+        SOLACE_INFO("Entering main loop...");
         SDL_Event event;
+
+        onInit();
 
         while (m_isRunning) {
             m_clock.tick();
@@ -113,6 +116,6 @@ namespace Solace {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
-        Logger::info("Engine destroyed.");
+        SOLACE_INFO("Engine destroyed.");
     }
 }

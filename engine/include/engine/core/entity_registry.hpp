@@ -8,7 +8,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 
 #include <engine/core/event_bus.hpp>
 
@@ -135,7 +135,7 @@ namespace Solace {
 
         EntityID create() {
             if (m_next_id >= MAX_ENTITIES) {
-                Logger::error("EntityRegistry: max entities reached");
+                SOLACE_ERROR("EntityRegistry: max entities reached");
                 return INVALID_ENTITY;
             }
             const EntityID id = m_next_id++;

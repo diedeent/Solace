@@ -6,7 +6,6 @@ add_library(engine STATIC
     # Core
     include/engine/core/engine.hpp
     include/engine/core/window.hpp
-    include/engine/core/logger.hpp
     include/engine/core/graphics_settings.hpp
     include/engine/core/settings_manager.hpp
     src/core/window.cpp
@@ -15,9 +14,12 @@ add_library(engine STATIC
 
     # Debug
     include/engine/debug/debug_overlay.hpp
+    include/engine/debug/logger.hpp
     include/engine/debug/fps.hpp
     src/debug/debug_overlay.cpp
+    src/debug/logger.cpp
     src/debug/fps.cpp
+    
 
     # Graphics & Render
     include/engine/graphics/frame_buffer.hpp
@@ -45,11 +47,15 @@ add_library(engine STATIC
 
     # Animations
     include/engine/animations/animator.hpp
+    include/engine/animations/animation_state_machine.hpp
     src/animations/animator.cpp
+    src/animations/animation_state_machine.cpp
 
     # Assets
     include/engine/assets/model_loader.hpp
+    include/engine/assets/asset_cache.hpp
     src/assets/model_loader.cpp
+    src/assets/asset_cache.cpp
 
     # Utils
     include/engine/utils/math_utils.hpp
@@ -61,7 +67,7 @@ add_library(engine STATIC
     # AI
     include/engine/ai/behavior_tree.hpp
     include/engine/ai/enemy_modules.hpp
- "src/assets/asset_cache.cpp" "src/animations/animation_state_machine.cpp")
+)
 
 # Прописываем пути к заголовкам всех внешних библиотек
 target_include_directories(engine PUBLIC

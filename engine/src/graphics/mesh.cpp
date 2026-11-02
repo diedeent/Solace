@@ -1,5 +1,5 @@
 #include <engine/graphics/mesh.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <stb_image.h>
 #include <cstddef>
 #include <utility>
@@ -54,11 +54,11 @@ namespace Solace {
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
                 stbi_image_free(imgData);
-                Logger::info("Mesh: Loaded default texture file: ", defaultTexPath);
+                SOLACE_INFO("Mesh: Loaded default texture file: ", defaultTexPath);
             }
             else {
                 // Если файл не найден, выводим ошибку и создаем аварийный белый пиксель, чтобы движок не упал
-                Logger::error("Mesh: FAILED to load default texture from '", defaultTexPath, "'. Using white fallback.");
+                SOLACE_ERROR("Mesh: FAILED to load default texture from '{}'. Using white fallback.", defaultTexPath);
                 unsigned char whitePixel[] = { 255, 255, 255, 255 };
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitePixel);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

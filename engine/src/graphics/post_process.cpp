@@ -1,5 +1,5 @@
 #include <engine/graphics/post_process.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -25,13 +25,13 @@ namespace Solace {
         m_internalW = 320;
         m_internalH = 180;
         recreateTarget();
-        Logger::info("PostProcess: pixel-art lens ready (target height ",
+        SOLACE_INFO("PostProcess: pixel-art lens ready (target height ",
             m_settings.targetHeight, ")");
     }
 
     PostProcess::~PostProcess() {
         release();
-        Logger::info("PostProcess: destroyed.");
+        SOLACE_INFO("PostProcess: destroyed.");
     }
 
     void PostProcess::createFullscreenTriangle() {
@@ -53,7 +53,7 @@ namespace Solace {
         GLint bufferSize = 0;
         glBindBuffer(GL_ARRAY_BUFFER, m_quadVbo);
         glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufferSize);
-        Logger::info("createFullscreenTriangle: buffer size = ", bufferSize);
+        SOLACE_INFO("createFullscreenTriangle: buffer size = ", bufferSize);
     }
 
     void PostProcess::recreateTarget() {
@@ -84,7 +84,7 @@ namespace Solace {
             GL_RENDERBUFFER, m_depthRbo);
 
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            Logger::error("PostProcess: framebuffer is incomplete!");
+            SOLACE_ERROR("PostProcess: framebuffer is incomplete!");
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -105,19 +105,22 @@ namespace Solace {
                 m_internalW = newW;
                 m_internalH = newH;
                 recreateTarget();
-                Logger::info("PostProcess: internal resolution ",
+                SOLACE_INFO("PostProcess: internal resolution ",
                     m_internalW, "x", m_internalH, " (pixel ", scale, "x", scale, ")");
             }
 
             static bool firstFrame = true;
             if (firstFrame) {
-                Logger::info("PostProcess: first frame rendered! Drawing quad to screen.");
+                SOLACE_INFO("PostProcess: first frame rendered! Drawing quad to screen.");
                 firstFrame = false;
             }
         }
 
+        while (glGetError() != GL_NO_ERROR) {}
+
+
         if (m_fbo == 0 || m_colorTex == 0) {
-            Logger::error("PostProcess: FBO is not initialized before render!");
+            SOLACE_ERROR("PostProcess: FBO is not initialized before render!");
             return;
         }
 
@@ -129,7 +132,7 @@ namespace Solace {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         GLenum err = glGetError();
-        if (err != GL_NO_ERROR) Logger::error("beginScene: GL error after clear: ", (int)err);
+        if (err != GL_NO_ERROR) SOLACE_ERROR("beginScene: GL error after clear: ", (int)err);
     }
 
     void PostProcess::endScene(int windowW, int windowH) {
@@ -175,7 +178,7 @@ namespace Solace {
         m_settings = newSettings;
         m_lastWindowW = -1;
         m_lastWindowH = -1;
-        Logger::info("PostProcess: settings applied. Target height: ", m_settings.targetHeight);
+        SOLACE_INFO("PostProcess: settings applied. Target height: ", m_settings.targetHeight);
     }
 
 } // namespace Solace 

@@ -4,7 +4,7 @@
 #include <ozz/base/maths/simd_math.h>
 #include <ozz/base/io/archive.h>
 #include <ozz/base/io/stream.h>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <cmath>
 #include <algorithm>
 #include <cstring>
@@ -14,12 +14,12 @@ namespace Solace {
     bool Animator::loadSkeleton(const std::string& filename) {
         ozz::io::File file(filename.c_str(), "rb");
         if (!file.opened()) {
-            Logger::error("Animator: FAILED to open skeleton file: ", filename);
+            SOLACE_ERROR("Animator: FAILED to open skeleton file: {}", filename);
             return false;
         }
         ozz::io::IArchive archive(&file);
         if (!archive.TestTag<ozz::animation::Skeleton>()) {
-            Logger::error("Animator: file is not a valid skeleton: ", filename);
+            SOLACE_ERROR("Animator: file is not a valid skeleton: {}", filename);
             return false;
         }
         archive >> m_skeleton;
@@ -35,7 +35,7 @@ namespace Solace {
         ltm.input = ozz::make_span(restLocals);
         ltm.output = ozz::make_span(restModels);
         if (!ltm.Run()) {
-            Logger::error("Animator: failed to compute rest pose");
+            SOLACE_ERROR("Animator: failed to compute rest pose");
             return false;
         }
 
@@ -44,19 +44,19 @@ namespace Solace {
             m_inverseBindPoses[i] = ozz::math::Invert(restModels[i]);
         }
 
-        Logger::info("Animator: skeleton loaded OK. Joints: ", m_skeleton.num_joints());
+        SOLACE_INFO("Animator: skeleton loaded OK. Joints: ", m_skeleton.num_joints());
         return true;
     }
 
     bool Animator::loadAnimation(const std::string& filename) {
         ozz::io::File file(filename.c_str(), "rb");
         if (!file.opened()) {
-            Logger::error("Animator: FAILED to open animation file: ", filename);
+            SOLACE_ERROR("Animator: FAILED to open animation file: {}", filename);
             return false;
         }
         ozz::io::IArchive archive(&file);
         if (!archive.TestTag<ozz::animation::Animation>()) {
-            Logger::error("Animator: file is not a valid animation: ", filename);
+            SOLACE_ERROR("Animator: file is not a valid animation: {}", filename);
             return false;
         }
         archive >> m_animation;
@@ -64,7 +64,7 @@ namespace Solace {
         m_locals.resize(m_skeleton.num_soa_joints());
         m_models.resize(m_skeleton.num_joints());
         m_skinningMatrices.resize(m_skeleton.num_joints());
-        Logger::info("Animator: animation loaded OK. Duration: ", m_duration, "s");
+        SOLACE_INFO("Animator: animation loaded OK. Duration: ", m_duration, "s");
         return true;
     }
 
@@ -90,7 +90,7 @@ namespace Solace {
         ltm_job.input = ozz::make_span(m_locals);
         ltm_job.output = ozz::make_span(m_models);
         if (!ltm_job.Run()) {
-            Logger::error("ozz: LocalToModel failed!");
+            SOLACE_ERROR("ozz: LocalToModel failed!");
             return;
         }
 

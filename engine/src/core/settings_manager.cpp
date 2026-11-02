@@ -1,5 +1,5 @@
 #include <engine/core/settings_manager.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <filesystem>
@@ -12,7 +12,7 @@ namespace Solace {
         GraphicsSettings settings;
 
         if (!std::filesystem::exists(filepath)) {
-            Logger::warning("Settings file not found. Creating default: ", filepath);
+            SOLACE_WARN("Settings file not found. Creating default: ", filepath);
             save(settings, filepath);
             return settings;
         }
@@ -46,10 +46,10 @@ namespace Solace {
                 j.at("clearColor").get_to(settings.clearColor);
             }
 
-            Logger::info("Graphics settings loaded from: ", filepath);
+            SOLACE_INFO("Graphics settings loaded from: ", filepath);
         }
         catch (const std::exception& e) {
-            Logger::error("Failed to parse graphics.json: ", e.what());
+            SOLACE_ERROR("Failed to parse graphics.json: ", e.what());
         }
 
         return settings;
@@ -79,6 +79,6 @@ namespace Solace {
 
         std::ofstream file(filepath);
         file << j.dump(4);
-        Logger::info("Graphics settings saved to: ", filepath);
+        SOLACE_INFO("Graphics settings saved to: ", filepath);
     }
 }

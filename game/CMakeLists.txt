@@ -19,6 +19,7 @@ add_executable(Solace
     include/game/entities/player.hpp
     include/game/entities/enemy.hpp
     src/entities/player.cpp
+    src/entities/enemy.cpp
 
     # Utils
     include/game/utils/player_model.hpp

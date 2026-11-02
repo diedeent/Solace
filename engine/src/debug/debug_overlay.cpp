@@ -4,7 +4,7 @@
 #include <engine/core/config_cache.hpp>
 #include <engine/core/entity_registry.hpp>
 #include <engine/core/event_bus.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <engine/scene/scene_manager.hpp>
 
 #include <imgui.h>
@@ -33,7 +33,7 @@ namespace Solace {
     // ============================================================
 
     void DebugOverlay::init() {
-        Logger::info("DebugOverlay: initialized");
+        SOLACE_INFO("DebugOverlay: initialized");
         add_log("=== Solace Debug Overlay ===");
         add_log("Press F1 for panels, ` for console");
 
@@ -143,8 +143,35 @@ namespace Solace {
                 }
             }
             ImGui::EndChild();
-
             ImGui::Separator();
+
+            // ============================================================
+            // УМНЫЕ ПОДСКАЗКИ (АВТОДОПОЛНЕНИЕ)
+            // ============================================================
+            std::string currentInput(s_input_buf);
+            if (!currentInput.empty()) {
+                std::vector<std::string> matches;
+                for (const auto& [name, _] : s_commands) {
+                    if (name.find(currentInput) == 0) { // Начинается с currentInput
+                        matches.push_back(name);
+                    }
+                }
+
+                if (!matches.empty()) {
+                    ImGui::TextColored(ImVec4(0.5f, 0.8f, 0.5f, 1.0f), "Подсказки:");
+                    for (const auto& match : matches) {
+                        if (ImGui::SmallButton(match.c_str())) {
+                            // Клик по подсказке — заполняем инпут
+                            std::memset(s_input_buf, 0, sizeof(s_input_buf));
+                            std::strncpy(s_input_buf, match.c_str(), sizeof(s_input_buf) - 1);
+                            ImGui::SetKeyboardFocusHere(-1);
+                        }
+                        ImGui::SameLine();
+                    }
+                    ImGui::NewLine();
+                }
+            }
+            // ============================================================
 
             ImGui::PushItemWidth(-1.0f);
             if (ImGui::InputText("##input", s_input_buf, IM_ARRAYSIZE(s_input_buf),
@@ -233,6 +260,10 @@ namespace Solace {
             ImGui::TextDisabled("` - console, F1 - close panels");
         }
         ImGui::End();
+    }
+
+    void DebugOverlay::unregister_command(const std::string& name) {
+        s_commands.erase(name);
     }
 
 } // namespace Solace

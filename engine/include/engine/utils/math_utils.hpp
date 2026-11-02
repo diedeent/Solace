@@ -29,6 +29,8 @@ namespace Solace {
 
     using Mat4 = std::array<float, 16>;
 
+    Mat4 mat4RotateY(float rad);
+
     Mat4 mat4Identity();
     Mat4 mat4Translate(float x, float y, float z);
     Mat4 mat4Scale(float x, float y, float z);

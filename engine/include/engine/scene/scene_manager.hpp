@@ -1,6 +1,6 @@
 #pragma once
 
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <engine/scene/scene.hpp>
 
 #include <memory>
@@ -34,7 +34,7 @@ namespace Solace {
         // Немедленный push (только в начальной инициализации)
         void push_immediate(std::unique_ptr<Scene> scene) {
             if (!scene) return;
-            Logger::info("SceneManager: push_immediate");
+            SOLACE_INFO("SceneManager: push_immediate");
             scene->on_enter(m_ctx);
             m_stack.push_back(std::move(scene));
         }
@@ -54,7 +54,7 @@ namespace Solace {
         // ---- Lifecycle ----
         void update(float gameplay_dt, float real_dt) {
             if (m_stack.empty()) {
-                Logger::warning("SceneManager: update with empty stack");
+                SOLACE_WARN("SceneManager: update with empty stack");
                 return;
             }
             m_stack.back()->on_update(gameplay_dt, real_dt, m_ctx);
@@ -91,7 +91,7 @@ namespace Solace {
             switch (type) {
             case SceneTransitionType::Push:
                 if (pending) {
-                    Logger::info("SceneManager: push");
+                    SOLACE_INFO("SceneManager: push");
                     // Текущая сцена на паузе — on_exit НЕ вызывается
                     pending->on_enter(m_ctx);
                     m_stack.push_back(std::move(pending));
@@ -100,19 +100,19 @@ namespace Solace {
 
             case SceneTransitionType::Pop:
                 if (m_stack.size() > 1) {
-                    Logger::info("SceneManager: pop");
+                    SOLACE_INFO("SceneManager: pop");
                     m_stack.back()->on_exit(m_ctx);
                     m_stack.pop_back();
                     // Возвращаемся к предыдущей — она уже в стеке, on_enter НЕ нужен
                 }
                 else {
-                    Logger::warning("SceneManager: pop on bottom scene (ignored)");
+                    SOLACE_WARN("SceneManager: pop on bottom scene (ignored)");
                 }
                 break;
 
             case SceneTransitionType::Replace:
                 if (pending) {
-                    Logger::info("SceneManager: replace");
+                    SOLACE_INFO("SceneManager: replace");
                     m_stack.back()->on_exit(m_ctx);
                     m_stack.pop_back();
                     pending->on_enter(m_ctx);

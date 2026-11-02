@@ -1,13 +1,13 @@
 #include <game/world/world_gen.hpp>
 #include <engine/assets/model_loader.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <cmath>
 #include <stdexcept>
 
 namespace App {
 
     WorldGen::WorldGen() {
-        Solace::Logger::info("WorldGen: initialized with default structure positions.");
+        SOLACE_INFO("WorldGen: initialized with default structure positions.");
         loadAssets();
     }
 
@@ -26,19 +26,36 @@ namespace App {
 
             if (!modelParts.empty()) {
                 m_monolith = std::make_unique<Solace::Mesh>(modelParts[0]);
-                Solace::Logger::info("WorldGen: Monolith model successfully created from GLB.");
+                SOLACE_INFO("WorldGen: Monolith model successfully created from GLB.");
             }
 
         }
         catch (const std::exception& e) {
-            Solace::Logger::error("Failed to load 3D model: ", e.what());
+            SOLACE_ERROR("Failed to load 3D model: ", e.what());
 
             m_monolith = std::make_unique<Solace::Mesh>(buildPillarData(0.6f, 3.0f, 4));
         }
 
         m_pillar = std::make_unique<Solace::Mesh>(buildPillarData(0.5f, 4.0f, 8));
 
-        Solace::Logger::info("WorldGen: Pillar created. Valid: ", m_pillar->valid());
+        SOLACE_INFO("WorldGen: Pillar created. Valid: ", m_pillar->valid());
+
+        // В loadAssets(), после m_pillar:
+// Пол 20×20 в Y=0
+        Solace::MeshData floorData;
+        floorData.vertices = {
+            // pos                 normal           uv
+            { { -10.f, 0.f, -10.f },{ 0.f,1.f,0.f },{ 0.f, 0.f } },
+            { { 10.f, 0.f, -10.f },{ 0.f,1.f,0.f },{ 4.f, 0.f } },
+            { { 10.f, 0.f,  10.f },{ 0.f,1.f,0.f },{ 4.f, 4.f } },
+            { { -10.f, 0.f,  10.f },{ 0.f,1.f,0.f },{ 0.f, 4.f } },
+        };
+        floorData.indices = { 0,1,2, 0,2,3 };
+        floorData.baseColor[0] = 0.35f;
+        floorData.baseColor[1] = 0.38f;
+        floorData.baseColor[2] = 0.32f;
+        m_floor = std::make_unique<Solace::Mesh>(floorData);
+
     }
 
     Solace::MeshData WorldGen::buildPillarData(float radius, float height, int segments) {
@@ -88,7 +105,7 @@ namespace App {
         shader.setVec3("u_baseColor", 1.0f, 0.0f, 0.0f); // Красная колонна
 
         if (!m_pillar || !m_pillar->valid()) {
-            Solace::Logger::error("WorldGen: Pillar is invalid!");
+            SOLACE_ERROR("WorldGen: Pillar is invalid!");
             return;
         }
         m_pillar->draw();
@@ -115,6 +132,13 @@ namespace App {
 
             m_monolith->draw();
         }
+
+        // Пол (без текстуры — цветной)
+        const Solace::Mat4 floorModel = Solace::mat4Identity();
+        shader.setMat4("u_model", floorModel.data());
+        shader.setInt("u_hasTexture", 0);
+        shader.setVec3("u_baseColor", 0.35f, 0.38f, 0.32f);
+        if (m_floor) m_floor->draw();
 
         shader.unbind();
     }

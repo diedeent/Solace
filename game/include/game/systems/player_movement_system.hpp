@@ -1,12 +1,9 @@
 #pragma once
-#include <game/entities/player.hpp>
-#include <engine/graphics/camera.hpp>
+#include <engine/core/entity_registry.hpp>
 
 namespace App {
-
     class PlayerMovementSystem {
     public:
-        static void update(Player& player, float deltaTime, CameraMode camMode);
+        static void update(Solace::EntityRegistry& registry, float deltaTime, bool isDevFreeFly);
     };
-
-} // namespace App 
+}

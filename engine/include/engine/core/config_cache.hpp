@@ -1,7 +1,7 @@
 #pragma once
 
 #include <engine/core/event_bus.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -44,7 +44,7 @@ namespace Solace {
 
         bool reload() {
             if (m_root_dir.empty()) {
-                Logger::warning("ConfigCache: reload() before load()");
+                SOLACE_WARN("ConfigCache: reload() before load()");
                 return false;
             }
 
@@ -53,7 +53,7 @@ namespace Solace {
                 if (!reload_section(name, *section)) all_ok = false;
             }
 
-            Logger::info(all_ok ? "ConfigCache: all sections reloaded"
+            SOLACE_INFO(all_ok ? "ConfigCache: all sections reloaded"
                 : "ConfigCache: some sections failed");
             return all_ok;
         }
@@ -95,7 +95,7 @@ namespace Solace {
                     }
                 }
                 catch (const std::exception& e) {
-                    Logger::error("ConfigCache: parse exception: ", e.what());
+                    SOLACE_CRITICAL("ConfigCache: parse exception: {}", e.what());
                 }
                 return false;  // data остаётся прежней
             }
@@ -115,7 +115,7 @@ namespace Solace {
 
             std::ifstream in(file);
             if (!in) {
-                Logger::warning("ConfigCache: not found: ", file.string(), " (keeping old)");
+                SOLACE_WARN("ConfigCache: not found: {} (keeping old)", file.string());
                 return false;
             }
 
@@ -125,7 +125,7 @@ namespace Solace {
                 return section.parse_from_json(j);
             }
             catch (const std::exception& e) {
-                Logger::error("ConfigCache: JSON error in ", file.string(), ": ", e.what());
+                SOLACE_ERROR("ConfigCache: JSON error in {}: {}",file.string(), e.what());
                 return false;
             }
         }

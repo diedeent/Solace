@@ -34,6 +34,16 @@ namespace App {
         float getYaw() const { return m_yaw; }
         float getPitch() const { return m_pitch; }
 
+        // --- Combat ---
+        float hp() const { return m_hp; }
+        float max_hp() const { return m_maxHp; }
+        bool is_alive() const { return m_hp > 0.0f; }
+        float attack_range() const { return m_attackRange; }
+        float attack_damage() const { return m_attackDamage; }
+        bool can_attack() const { return m_attackTimer <= 0.0f && is_alive(); }
+        void start_attack_cooldown() { m_attackTimer = m_attackCooldown; }
+        void take_damage(float dmg);
+
 
 
     private:
@@ -51,6 +61,13 @@ namespace App {
         float m_dashDuration;
         float m_dashCooldown;
         float m_dashCooldownTimer;
+
+        float m_hp = 100.0f;
+        float m_maxHp = 100.0f;
+        float m_attackRange = 2.0f;
+        float m_attackDamage = 20.0f;
+        float m_attackCooldown = 0.5f;
+        float m_attackTimer = 0.0f;
 
         std::unique_ptr<PlayerModel> m_playerModel;
     };

@@ -1,6 +1,6 @@
 #include <engine/assets/asset_cache.hpp>
 #include <engine/assets/model_loader.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 
 #include <algorithm>
 #include <cstring>
@@ -39,7 +39,7 @@ namespace Solace {
             ltm.input = ozz::make_span(locals);
             ltm.output = ozz::make_span(models);
             if (!ltm.Run()) {
-                Logger::error("AssetCache: failed to compute inverse bind poses");
+                SOLACE_ERROR("AssetCache: failed to compute inverse bind poses");
                 return;
             }
 
@@ -50,21 +50,15 @@ namespace Solace {
         }
     } // namespace
 
-
-#include <ozz/base/io/archive.h>
-#include <ozz/base/io/stream.h>
-#include <ozz/animation/runtime/local_to_model_job.h>
-#include <cstring>
-
     bool AssetCache::load_skeleton_ozz(ModelAsset& asset, const std::string& path) {
         ozz::io::File file(path.c_str(), "rb");
         if (!file.opened()) {
-            Logger::error("AssetCache: failed to open skeleton: ", path);
+            SOLACE_ERROR("AssetCache: failed to open skeleton: {}", path);
             return false;
         }
         ozz::io::IArchive archive(&file);
         if (!archive.TestTag<ozz::animation::Skeleton>()) {
-            Logger::error("AssetCache: invalid skeleton file: ", path);
+            SOLACE_ERROR("AssetCache: invalid skeleton file: {}", path);
             return false;
         }
         archive >> asset.skeleton;
@@ -86,19 +80,19 @@ namespace Solace {
             asset.inverse_bind_poses[i] = ozz::math::Invert(restModels[i]);
         }
 
-        Logger::info("AssetCache: skeleton loaded: ", path, " (", asset.skeleton.num_joints(), " joints)");
+        SOLACE_INFO("AssetCache: skeleton loaded: ", path, " (", asset.skeleton.num_joints(), " joints)");
         return true;
     }
 
     bool AssetCache::load_animation_ozz(ModelAsset& asset, const std::string& name, const std::string& path) {
         ozz::io::File file(path.c_str(), "rb");
         if (!file.opened()) {
-            Logger::error("AssetCache: failed to open animation: ", path);
+            SOLACE_ERROR("AssetCache: failed to open animation: {}", path);
             return false;
         }
         ozz::io::IArchive archive(&file);
         if (!archive.TestTag<ozz::animation::Animation>()) {
-            Logger::error("AssetCache: invalid animation file: ", path);
+            SOLACE_ERROR("AssetCache: invalid animation file: {}", path);
             return false;
         }
 
@@ -106,7 +100,7 @@ namespace Solace {
         archive >> anim;
         asset.animations.emplace(name, std::move(anim));
 
-        Logger::info("AssetCache: animation '", name, "' loaded (", asset.animations.at(name).duration(), "s)");
+        SOLACE_INFO("AssetCache: animation '", name, "' loaded (", asset.animations.at(name).duration(), "s)");
         return true;
     }
 
@@ -120,7 +114,7 @@ namespace Solace {
         try {
             auto mesh_datas = ModelLoader::loadFromFile(path);
             if (mesh_datas.empty()) {
-                Logger::error("AssetCache: empty model: ", path);
+                SOLACE_ERROR("AssetCache: empty model: ", path);
                 return nullptr;
             }
 
@@ -130,7 +124,7 @@ namespace Solace {
             build_bone_names(*asset, mesh_datas);
         }
         catch (const std::exception& e) {
-            Logger::error("AssetCache: failed to load '", path, "': ", e.what());
+            SOLACE_ERROR("AssetCache: failed to load '{}': ", path, e.what());
             return nullptr;
         }
 
@@ -139,7 +133,7 @@ namespace Solace {
         // Пока asset->has_skeleton() = false.
 
         m_models.emplace(path, asset);
-        Logger::info("AssetCache: loaded '", path, "' (", asset->meshes.size(), " meshes)");
+        SOLACE_INFO("AssetCache: loaded '{}' ({} meshes)", path, asset->meshes.size());
         return asset;
     }
 

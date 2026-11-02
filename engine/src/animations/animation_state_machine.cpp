@@ -1,5 +1,5 @@
 #include <engine/animations/animation_state_machine.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 
 #include <ozz/animation/runtime/blending_job.h>
 #include <ozz/animation/runtime/local_to_model_job.h>
@@ -19,7 +19,7 @@ namespace Solace {
         , m_asset(std::move(model_asset))
     {
         if (!m_asset || !m_asset->has_skeleton()) {
-            Logger::error("ASM: model has no skeleton, animation disabled");
+            SOLACE_ERROR("ASM: model has no skeleton, animation disabled");
             return;
         }
 
@@ -43,7 +43,7 @@ namespace Solace {
         if (!m_initialized) return;
         clip.name = name;
         m_clips[name] = std::move(clip);
-        Logger::info("ASM: clip added '", name, "' (",
+        SOLACE_INFO("ASM: clip added '", name, "' (",
             m_clips[name].duration(), "s, ", m_clips[name].events.size(), " events)");
     }
 
@@ -52,7 +52,7 @@ namespace Solace {
 
         auto it = m_clips.find(name);
         if (it == m_clips.end()) {
-            Logger::error("ASM: clip not found '", name, "'");
+            SOLACE_ERROR("ASM: clip not found '{}'", name);
             return;
         }
 
@@ -71,7 +71,7 @@ namespace Solace {
         m_fade_time = fade_time;
         m_fade_timer = fade_time;
 
-        Logger::info("ASM[", m_entity, "]: play '", name,
+        SOLACE_INFO("ASM[", m_entity, "]: play '", name,
             "' (fade ", fade_time, "s)");
     }
 
@@ -217,7 +217,7 @@ namespace Solace {
             blend.output = ozz::make_span(m_blended);
             blend.threshold = 0.1f;
             if (!blend.Run()) {
-                Logger::error("ASM: blending failed");
+                SOLACE_ERROR("ASM: blending failed");
                 return;
             }
         }
@@ -232,7 +232,7 @@ namespace Solace {
         ltm.input = ozz::make_span(m_blended);
         ltm.output = ozz::make_span(m_models);
         if (!ltm.Run()) {
-            Logger::error("ASM: local_to_model failed");
+            SOLACE_ERROR("ASM: local_to_model failed");
             return;
         }
 

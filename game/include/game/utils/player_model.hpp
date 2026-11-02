@@ -1,39 +1,32 @@
 #pragma once
 
-#include <engine/animations/animator.hpp>
-#include <engine/graphics/shader.hpp>
-#include <engine/graphics/mesh.hpp>
-#include <engine/utils/math_utils.hpp>
+#include <string>
 #include <memory>
 #include <vector>
-#include <string>
+
+#include <glad/glad.h>
+#include <engine/graphics/mesh.hpp>
+#include <engine/graphics/shader.hpp>
+#include <engine/utils/math_utils.hpp>
 
 namespace App {
 
     class PlayerModel {
     public:
-        PlayerModel();
-        ~PlayerModel();
+        PlayerModel() = default;
+        ~PlayerModel() = default;
 
         void loadModel(const std::string& filePath);
-        void render(Solace::Shader& shader, const Solace::Mat4& viewMatrix, const Solace::Mat4& projMatrix,
+        void swapModel(const std::string& newFilePath) { loadModel(newFilePath); }
+        void update(float deltaTime) {}
+        void render(Solace::Shader& shader,
+            const Solace::Mat4& viewMatrix,
+            const Solace::Mat4& projMatrix,
             float worldX, float worldY, float worldZ, float yaw);
-        void update(float deltaTime);
-
-        void setScale(float scale) { m_scale = scale; }
-        float getScale() const { return m_scale; }
-        void swapModel(const std::string& newFilePath);
-
-        const ozz::animation::Skeleton& GetSkeleton() const;
 
     private:
-        std::string m_currentModelPath;
-        float m_scale;
         std::vector<std::unique_ptr<Solace::Mesh>> m_meshes;
-
-        GLuint m_boneSSBO = 0;
-
-        std::unique_ptr<Solace::Animator> m_animator;
+        float m_scale = 1.0f;
     };
 
-} // namespace App 
+} // namespace App

@@ -10,7 +10,7 @@
     "rimPower": 1.2
   },
   "postProcess": {
-    "targetHeight": 180,
+    "targetHeight": 720,
     "paletteBits": 6.0,
     "ditherAmount": 0.5,
     "bloomStrength": 0.7,

@@ -17,18 +17,16 @@ namespace Solace {
         static void init();
         static void shutdown();
 
-        // ---- Context (передаётся из Game::onInit) ----
         static void set_context(SceneContext* ctx, SceneManager* scenes);
 
-        // ---- Console (~) ----
         static void toggle();
         static bool is_open();
 
-        // ---- Panels (F1) ----
         static void toggle_panels();
         static bool is_panels_open();
 
         static void register_command(const std::string& name, ConsoleCommandFunc func);
+        static void unregister_command(const std::string& name); // <-- НОВОЕ
         static void execute_command(const std::string& commandLine);
         static void add_log(const std::string& text);
 
@@ -38,7 +36,6 @@ namespace Solace {
         static void render_console();
         static void render_panels();
 
-        // ---- Console state ----
         static bool s_console_open;
         static char s_input_buf[256];
         static std::vector<std::string> s_logs;
@@ -47,7 +44,6 @@ namespace Solace {
         static std::unordered_map<std::string, ConsoleCommandFunc> s_commands;
         static bool s_scroll_to_bottom;
 
-        // ---- Panels state ----
         static bool s_panels_open;
         static SceneContext* s_ctx;
         static SceneManager* s_scenes;
@@ -55,4 +51,4 @@ namespace Solace {
         static constexpr size_t MAX_LOGS = 100;
     };
 
-} // namespace Solace 
+} // namespace Solace

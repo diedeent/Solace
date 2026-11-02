@@ -2,7 +2,7 @@
 #include <game/scenes/gameplay_scene.hpp>
 #include <game/configs/player_config.hpp>
 
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <engine/core/settings_manager.hpp>
 #include <engine/debug/debug_overlay.hpp>
 #include <engine/debug/fps.hpp>
@@ -16,11 +16,11 @@
 namespace App {
 
     Game::Game() {
-        Solace::Logger::info("Game instance created");
+        SOLACE_INFO("Game instance created");
     }
 
     Game::~Game() {
-        Solace::Logger::info("Game destroyed");
+        SOLACE_INFO("Game destroyed");
     }
 
     void Game::onInit() {
@@ -37,20 +37,12 @@ namespace App {
         // 2. Регистрация gameplay-секций ConfigCache
         config().register_section<PlayerConfig>("player", PlayerConfig::parse);
         if (!config().load("assets/configs")) {
-            Solace::Logger::error("Game: failed to load gameplay configs, using defaults");
+            SOLACE_ERROR("Game: failed to load gameplay configs, using defaults");
         }
-
-        // 3. Регистрация консольных команд (упрощённо)
-        Solace::DebugOverlay::register_command("fps", [](const std::vector<std::string>& args) {
-            if (!args.empty()) {
-                Solace::Fps::setVisible(std::stoi(args[0]) > 0);
-            }
-            });
 
         // 4. Стартовая сцена
         scenes().push_immediate(std::make_unique<GameplayScene>());
-
-        Solace::Logger::info("Game initialized");
+        SOLACE_INFO("Game initialized");
     }
 
     void Game::onEvent(const SDL_Event& e) {
@@ -74,7 +66,7 @@ namespace App {
     void Game::onShutdown() {
         // scenes() уже очищен в Engine::run перед onShutdown()
         // Здесь только глобальные ресурсы (если есть)
-        Solace::Logger::info("Game shutdown");
+        SOLACE_INFO("Game shutdown");
     }
 
     void Game::onUpdate(float /*realDt*/, float /*gameplayDt*/) {
