@@ -175,9 +175,14 @@ namespace Solace {
     }
 
     void PostProcess::applySettings(const PostSettings& newSettings) {
+        const int old_height = m_settings.targetHeight;
         m_settings = newSettings;
-        m_lastWindowW = -1;
-        m_lastWindowH = -1;
+        if (old_height != m_settings.targetHeight) {
+            // Разрешение внутреннего таргета изменилось — форсируем recreate при следующем beginScene.
+            m_lastWindowW = -1;
+            m_lastWindowH = -1;
+            
+        }
         SOLACE_INFO("PostProcess: settings applied. Target height: ", m_settings.targetHeight);
     }
 

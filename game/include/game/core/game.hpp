@@ -1,6 +1,7 @@
 #pragma once
 
 #include <engine/core/engine.hpp>
+#include <engine/core/event_bus.hpp>
 
 namespace App {
 
@@ -19,6 +20,9 @@ namespace App {
     private:
         void renderUI();
         void reloadGraphicsSettings();
+        void apply_graphics_settings();
+
+        Solace::ScopedSubscriptions m_subs;
     };
 
 }

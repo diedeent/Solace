@@ -45,10 +45,10 @@ namespace App {
         Solace::MeshData floorData;
         floorData.vertices = {
             // pos                 normal           uv
-            { { -10.f, 0.f, -10.f },{ 0.f,1.f,0.f },{ 0.f, 0.f } },
-            { { 10.f, 0.f, -10.f },{ 0.f,1.f,0.f },{ 4.f, 0.f } },
-            { { 10.f, 0.f,  10.f },{ 0.f,1.f,0.f },{ 4.f, 4.f } },
-            { { -10.f, 0.f,  10.f },{ 0.f,1.f,0.f },{ 0.f, 4.f } },
+            { { -100.f, 0.f, -100.f },{ 0.f,1.f,0.f },{ 0.f, 0.f } },
+            { { 100.f, 0.f, -100.f },{ 0.f,1.f,0.f },{ 4.f, 0.f } },
+            { { 100.f, 0.f,  100.f },{ 0.f,1.f,0.f },{ 4.f, 4.f } },
+            { { -100.f, 0.f,  100.f },{ 0.f,1.f,0.f },{ 0.f, 4.f } },
         };
         floorData.indices = { 0,1,2, 0,2,3 };
         floorData.baseColor[0] = 0.35f;
@@ -85,15 +85,6 @@ namespace App {
     void WorldGen::render(const Solace::Shader& shader,
         Solace::Mat4 view, Solace::Mat4 proj) const {
         shader.bind();
-
-        shader.setMat4("u_view", view.data());
-        shader.setMat4("u_proj", proj.data());
-
-        // Освещение из конфига/настроек
-        shader.setVec3("u_sunDir", 0.4f, 0.8f, 0.35f);
-        shader.setVec3("u_sunColor", 1.00f, 0.92f, 0.78f);
-        shader.setVec3("u_skyColor", 0.45f, 0.55f, 0.60f);
-        shader.setVec3("u_groundColor", 0.35f, 0.32f, 0.28f);
 
         // --- 1. РЕНДЕР КОЛОННЫ (процедурная, без текстуры -> цветная) ---
         Vec3 m_pillarPos = { 5.0f, 0.0f, 0.0f };

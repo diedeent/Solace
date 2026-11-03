@@ -12,19 +12,41 @@ namespace Solace {
     Mesh::~Mesh() { release(); }
 
     Mesh::Mesh(Mesh&& other) noexcept
-        : m_vao(other.m_vao), m_vbo(other.m_vbo), m_ebo(other.m_ebo), m_indexCount(other.m_indexCount), m_textureID(other.m_textureID) {
+        : m_vao(other.m_vao)
+        , m_vbo(other.m_vbo)
+        , m_ebo(other.m_ebo)
+        , m_textureID(other.m_textureID)
+        , m_indexCount(other.m_indexCount)
+        , m_hasTexture(other.m_hasTexture)
+    {
+        m_baseColor[0] = other.m_baseColor[0];
+        m_baseColor[1] = other.m_baseColor[1];
+        m_baseColor[2] = other.m_baseColor[2];
+
         other.m_vao = other.m_vbo = other.m_ebo = other.m_textureID = 0;
         other.m_indexCount = 0;
+        other.m_hasTexture = false;
+        other.m_baseColor[0] = other.m_baseColor[1] = other.m_baseColor[2] = 1.0f;
     }
 
     Mesh& Mesh::operator=(Mesh&& other) noexcept {
         if (this != &other) {
             release();
-            m_vao = other.m_vao; m_vbo = other.m_vbo; m_ebo = other.m_ebo;
+
+            m_vao = other.m_vao;
+            m_vbo = other.m_vbo;
+            m_ebo = other.m_ebo;
             m_textureID = other.m_textureID;
             m_indexCount = other.m_indexCount;
+            m_hasTexture = other.m_hasTexture;
+            m_baseColor[0] = other.m_baseColor[0];
+            m_baseColor[1] = other.m_baseColor[1];
+            m_baseColor[2] = other.m_baseColor[2];
+
             other.m_vao = other.m_vbo = other.m_ebo = other.m_textureID = 0;
             other.m_indexCount = 0;
+            other.m_hasTexture = false;
+            other.m_baseColor[0] = other.m_baseColor[1] = other.m_baseColor[2] = 1.0f;
         }
         return *this;
     }

@@ -13,6 +13,8 @@
 #include <engine/systems/input_system.hpp>
 #include <imgui.h>
 
+
+
 namespace App {
 
     static void upload_remapped_bones_to_ssbo(
@@ -48,6 +50,20 @@ namespace App {
 
     void GameplayScene::on_enter(Solace::SceneContext& ctx) {
         SOLACE_INFO("GameplayScene: enter");
+
+        m_lighting = ctx.config.get<Solace::GraphicsSettings>().lighting;
+        SOLACE_INFO("GameplayScene: lighting loaded (rimPower=", m_lighting.rimPower,
+            ", toonMid=", m_lighting.toonMidStep, ")");
+
+        m_configSubs = std::make_unique<Solace::ScopedSubscriptions>(ctx.bus);
+        m_configSubs->subscribe<Solace::ConfigReloadedEvent>(
+            [this, &ctx](const Solace::ConfigReloadedEvent& e) {
+                if (e.success) {
+                    m_lighting = ctx.config.get<Solace::GraphicsSettings>().lighting;
+                    SOLACE_INFO("GameplayScene: lighting reloaded (rimPower=",
+                        m_lighting.rimPower, ")");
+                }
+            });
 
         // 1) World shader
         m_worldShader = std::make_unique<Solace::Shader>(
@@ -216,6 +232,8 @@ namespace App {
     void GameplayScene::on_exit(Solace::SceneContext& ctx) {
         SOLACE_INFO("GameplayScene: exit");
 
+        m_configSubs.reset();
+
         if (m_playerEntity != Solace::INVALID_ENTITY) {
             ctx.registry.destroy(m_playerEntity);
             ctx.registry.process_destroy();
@@ -326,12 +344,24 @@ namespace App {
 
         m_worldShader->bind();
 
-        m_worldShader->setVec3("u_sunDir", 0.4f, 0.8f, 0.35f);
-        m_worldShader->setVec3("u_sunColor", 1.0f, 0.92f, 0.78f);
+        // Освещение — всё из graphics.json, единая точка правды.
+        m_worldShader->setVec3("u_sunDir",
+            m_lighting.sunDir[0], m_lighting.sunDir[1], m_lighting.sunDir[2]);
+        m_worldShader->setVec3("u_sunColor",
+            m_lighting.sunColor[0], m_lighting.sunColor[1], m_lighting.sunColor[2]);
+        m_worldShader->setVec3("u_skyColor",
+            m_lighting.skyColor[0], m_lighting.skyColor[1], m_lighting.skyColor[2]);
+        m_worldShader->setVec3("u_groundColor",
+            m_lighting.groundColor[0], m_lighting.groundColor[1], m_lighting.groundColor[2]);
+        m_worldShader->setVec3("u_rimColor",
+            m_lighting.rimColor[0], m_lighting.rimColor[1], m_lighting.rimColor[2]);
+        m_worldShader->setFloat("u_toonMidStep", m_lighting.toonMidStep);
+        m_worldShader->setFloat("u_toonShadowStep", m_lighting.toonShadowStep);
+        m_worldShader->setFloat("u_rimPower", m_lighting.rimPower);
+
+        // Позиция камеры — из App::Camera (m_camX/Y/Z), а не из столбца view-матрицы.
         m_worldShader->setVec3("u_viewPos",
-            m_viewMatrix.data()[12],
-            m_viewMatrix.data()[13],
-            m_viewMatrix.data()[14]);
+            m_camera.getX(), m_camera.getY(), m_camera.getZ());
         m_worldShader->setMat4("u_view", m_viewMatrix.data());
         m_worldShader->setMat4("u_proj", m_projMatrix.data());
 

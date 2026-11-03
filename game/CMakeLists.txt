@@ -3,34 +3,35 @@ project(game LANGUAGES CXX)
 
 add_executable(Solace
     # Core
-    include/game/core/game_state.hpp
     include/game/core/game.hpp
     src/core/game.cpp
-    src/core/game_state.cpp
     src/main.cpp
 
     # Systems
 
     # Components
     include/game/systems/player_movement_system.hpp
+    include/game/components/camera_component.hpp
     src/systems/player_movement_system.cpp
+    src/components/camera_component.cpp
+
 
     # Entities
-    include/game/entities/player.hpp
     include/game/entities/enemy.hpp
-    src/entities/player.cpp
     src/entities/enemy.cpp
 
-    # Utils
-    include/game/utils/player_model.hpp
-    src/utils/player_model.cpp
-
     # World
-    include/game/world/structures.hpp
     include/game/world/world_gen.hpp
-    src/world/structures.cpp
     src/world/world_gen.cpp
- "src/scenes/gameplay_scene.cpp")
+
+    # Scenes
+    include/game/scenes/gameplay_scene.hpp
+    src/scenes/gameplay_scene.cpp
+
+
+
+
+)
 
 target_include_directories(Solace PRIVATE
     include

@@ -1,4 +1,4 @@
-#include <engine/graphics/camera.hpp>
+#include <game/components/camera_component.hpp>
 #include <cmath>
 
 namespace App {

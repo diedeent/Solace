@@ -25,17 +25,13 @@ add_library(engine STATIC
     include/engine/graphics/frame_buffer.hpp
     include/engine/graphics/mesh.hpp
     include/engine/graphics/post_process.hpp
-    include/engine/graphics/renderer.hpp
     include/engine/graphics/shader.hpp
     include/engine/graphics/shader_loader.hpp
-    include/engine/graphics/camera.hpp
     src/graphics/frame_buffer.cpp
     src/graphics/mesh.cpp
     src/graphics/post_process.cpp
-    src/graphics/renderer.cpp
     src/graphics/shader.cpp
     src/graphics/shader_loader.cpp
-    src/graphics/camera.cpp
 
     # Systems
     include/engine/systems/combat_system.hpp
@@ -46,9 +42,7 @@ add_library(engine STATIC
     src/systems/item_system.cpp
 
     # Animations
-    include/engine/animations/animator.hpp
     include/engine/animations/animation_state_machine.hpp
-    src/animations/animator.cpp
     src/animations/animation_state_machine.cpp
 
     # Assets

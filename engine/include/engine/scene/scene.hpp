@@ -4,7 +4,6 @@
 #include <engine/core/entity_registry.hpp>
 #include <engine/core/event_bus.hpp>
 #include <engine/core/clock.hpp>
-#include <engine/graphics/camera.hpp>
 #include <engine/graphics/shader.hpp>
 #include <engine/assets/asset_cache.hpp>
 

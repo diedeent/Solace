@@ -55,6 +55,7 @@ namespace Solace {
 
             SOLACE_INFO(all_ok ? "ConfigCache: all sections reloaded"
                 : "ConfigCache: some sections failed");
+
             return all_ok;
         }
 

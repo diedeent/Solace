@@ -10,6 +10,11 @@ namespace App {
 
         Solace::Mat4 getViewMatrix() const { return m_viewMatrix; }
         Solace::Mat4 getProjMatrix() const { return m_projMatrix; }
+
+        float getX() const { return m_camX; }
+        float getY() const { return m_camY; }
+        float getZ() const { return m_camZ; }
+       
         void setAspect(float aspect) {
             float fovRad = 45.0f * 3.14159265f / 180.0f;
             m_projMatrix = Solace::mat4Perspective(fovRad, aspect, 0.1f, 100.0f);

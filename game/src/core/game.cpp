@@ -3,7 +3,7 @@
 #include <game/configs/player_config.hpp>
 
 #include <engine/debug/logger.hpp>
-#include <engine/core/settings_manager.hpp>
+#include <engine/core/graphics_settings.hpp>
 #include <engine/debug/debug_overlay.hpp>
 #include <engine/debug/fps.hpp>
 
@@ -15,7 +15,9 @@
 
 namespace App {
 
-    Game::Game() {
+    Game::Game() 
+        : m_subs(event_bus()) 
+    {
         SOLACE_INFO("Game instance created");
     }
 
@@ -24,25 +26,46 @@ namespace App {
     }
 
     void Game::onInit() {
-        // 1. Загрузка graphics (legacy) и применение к PostProcess
-        auto settings = Solace::SettingsManager::load();
-        Solace::PostSettings pp;
-        pp.targetHeight = settings.postProcess.targetHeight;
-        pp.paletteBits = settings.postProcess.paletteBits;
-        pp.ditherAmount = settings.postProcess.ditherAmount;
-        pp.bloomStrength = settings.postProcess.bloomStrength;
-        pp.bloomThreshold = settings.postProcess.bloomThreshold;
-        getPostProcess()->applySettings(pp);
 
-        // 2. Регистрация gameplay-секций ConfigCache
+        config().register_section<Solace::GraphicsSettings>(
+            "graphics", Solace::GraphicsSettings::parse);
         config().register_section<PlayerConfig>("player", PlayerConfig::parse);
+
         if (!config().load("assets/configs")) {
-            SOLACE_ERROR("Game: failed to load gameplay configs, using defaults");
+            SOLACE_ERROR("Game: failed to load configs, using defaults");
         }
+
+        apply_graphics_settings();
+
+
+        m_subs.subscribe<Solace::ConfigReloadedEvent>([this](const Solace::ConfigReloadedEvent& e) {
+                if (e.success) {
+                    SOLACE_INFO("Game: config reloaded, re-applying graphics");
+                    apply_graphics_settings();
+                }
+                else {
+                    SOLACE_WARN("Game: config reload failed — keeping previous settings");
+                }
+        });
 
         // 4. Стартовая сцена
         scenes().push_immediate(std::make_unique<GameplayScene>());
         SOLACE_INFO("Game initialized");
+    }
+
+    void Game::apply_graphics_settings() {
+        const auto& gfx = config().get<Solace::GraphicsSettings>();
+        
+        Solace::PostSettings pp;
+        pp.targetHeight = gfx.postProcess.targetHeight;
+        pp.paletteBits = gfx.postProcess.paletteBits;
+        pp.ditherAmount = gfx.postProcess.ditherAmount;
+        pp.bloomStrength = gfx.postProcess.bloomStrength;
+        pp.bloomThreshold = gfx.postProcess.bloomThreshold;
+        getPostProcess()->applySettings(pp);
+        
+            SOLACE_INFO("Game: graphics applied (targetHeight=", pp.targetHeight,
+                ", paletteBits=", pp.paletteBits, ")");
     }
 
     void Game::onEvent(const SDL_Event& e) {

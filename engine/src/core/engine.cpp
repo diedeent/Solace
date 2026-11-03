@@ -109,6 +109,7 @@ namespace Solace {
 
         onShutdown();
         m_scenes.reset();                        // ~SceneManager → on_exit всех
+        Solace::Logger::shutdown();
     }
 
     Engine::~Engine() {

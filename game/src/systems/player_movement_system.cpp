@@ -1,5 +1,5 @@
 #include <game/systems/player_movement_system.hpp>
-#include <game/components/player_components.hpp>
+#include <game/components/player_component.hpp>
 #include <engine/systems/input_system.hpp>
 #include <engine/debug/logger.hpp>
 #include <cmath>

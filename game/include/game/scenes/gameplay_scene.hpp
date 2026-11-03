@@ -7,10 +7,11 @@
 #include <engine/utils/math_utils.hpp>
 
 #include <game/world/world_gen.hpp>
-#include <game/components/player_components.hpp>
-
+#include <game/components/player_component.hpp>
+#include <game/components/camera_component.hpp>
 #include <game/entities/enemy.hpp>
-#include <engine/graphics/camera.hpp>
+
+#include <engine/core/graphics_settings.hpp>
 
 #include <memory>
 
@@ -42,7 +43,8 @@ namespace App {
         Solace::Mat4 m_viewMatrix;
         Solace::Mat4 m_projMatrix;
 
-
+        Solace::LightingSettings m_lighting;
+        std::unique_ptr<Solace::ScopedSubscriptions> m_configSubs;
 
         App::Camera m_camera;
         std::vector<std::unique_ptr<App::Enemy>> m_enemies;
