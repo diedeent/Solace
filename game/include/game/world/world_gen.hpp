@@ -27,6 +27,8 @@ namespace App {
         std::unique_ptr<Solace::Mesh> m_monolith;
         std::unique_ptr<Solace::Mesh> m_pillar;
 
+        std::unique_ptr<Solace::Mesh> m_floor;
+
         Vec3 m_pillarPos = { 0.0f, 0.0f, 0.0f };
         Vec3 m_monolithPos = { 3.0f, 0.0f, 0.0f };
     };

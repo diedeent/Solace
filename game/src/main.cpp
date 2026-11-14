@@ -1,5 +1,5 @@
 #include <game/core/game.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <filesystem>
 
 int main(int argc, char* argv[]) {
@@ -8,10 +8,10 @@ int main(int argc, char* argv[]) {
         game.run();
     }
     catch (const std::exception& e) {
-        Solace::Logger::error("Fatal Error: ", e.what());
+        SOLACE_CRITICAL(e.what());
         return -1;
     }
 
-    Solace::Logger::info("Game exited successfully.");
+    SOLACE_INFO("Game exited successfully.");
     return 0;
 }

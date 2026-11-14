@@ -77,7 +77,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     ozz-animation
     GIT_REPOSITORY https://github.com/guillaumeblanc/ozz-animation.git
-    GIT_TAG master
+    GIT_TAG 0.17.0
 )
 
 # Загружаем всё в кэш CMake
@@ -116,3 +116,10 @@ target_link_libraries(imgui PUBLIC SDL3::SDL3 OpenGL::GL)
 
 add_subdirectory(engine)
 add_subdirectory(game) 
+
+option(BUILD_TESTING "Build unit tests" ON)
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

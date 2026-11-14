@@ -4,10 +4,10 @@
     "sunColor": [ 1.0, 0.92, 0.78 ],
     "skyColor": [ 0.45, 0.55, 0.60 ],
     "groundColor": [ 0.35, 0.32, 0.28 ],
-    "toonMidStep": 0.4,
+    "toonMidStep": 0.9,
     "toonShadowStep": 0.15,
-    "rimColor": [ 1.0, 0.8, 0.5 ],
-    "rimPower": 1.2
+    "rimColor": [ 1.0, 0.0, 0.0 ],
+    "rimPower": 0.8
   },
   "postProcess": {
     "targetHeight": 180,

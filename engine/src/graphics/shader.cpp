@@ -1,5 +1,5 @@
 #include <engine/graphics/shader.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -23,12 +23,12 @@ namespace Solace {
         if (!success) {
             GLchar infoLog[512];
             glGetProgramInfoLog(m_rendererID, 512, NULL, infoLog);
-            Logger::error("Failed to link shader program! Error: ", infoLog);
+            SOLACE_ERROR("Failed to link shader program! Error: ", infoLog);
         }
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
 
-        Logger::info("Shader program successfully created (ID: ", m_rendererID, ")");
+        SOLACE_INFO("Shader program successfully created (ID: ", m_rendererID, ")");
     }
 
     Shader::~Shader() {
@@ -88,19 +88,19 @@ namespace Solace {
                     std::stringstream stream;
                     stream << file.rdbuf();
                     file.close();
-                    Logger::debug("Shader successfully loaded from: ", fs::absolute(candidate).string());
+                    SOLACE_DEBUG("Shader successfully loaded from: ", fs::absolute(candidate).string());
                     return stream.str();
                 }
                 catch (std::ifstream::failure& e) {
-                    Logger::warning("Found shader at ", candidate.string(), ", but failed to read it.");
+                    SOLACE_WARN("Found shader at ", candidate.string(), ", but failed to read it.");
                 }
             }
         }
-        Logger::error("==================================================");
-        Logger::error("FATAL: Failed to find shader file: ", filepath);
-        Logger::error("Current Working Directory (CWD): ", fs::current_path().string());
-        Logger::error("Check your Visual Studio Working Directory settings!");
-        Logger::error("==================================================");
+        SOLACE_ERROR("==================================================");
+        SOLACE_ERROR("FATAL: Failed to find shader file: ", filepath);
+        SOLACE_ERROR("Current Working Directory (CWD): ", fs::current_path().string());
+        SOLACE_ERROR("Check your Visual Studio Working Directory settings!");
+        SOLACE_ERROR("==================================================");
 
         throw std::runtime_error("Shader file not found: " + filepath);
     }
@@ -119,7 +119,7 @@ namespace Solace {
             GLchar infoLog[512];
             glGetShaderInfoLog(shader, 512, nullptr, infoLog);
             std::string typeStr = (type == GL_VERTEX_SHADER) ? "VERTEX" : "FRAGMENT";
-            Logger::error("Failed to compile ", typeStr, " shader! Error: ", infoLog);
+            SOLACE_ERROR("Failed to compile ", typeStr, " shader! Error: ", infoLog);
         }
 
         return shader;

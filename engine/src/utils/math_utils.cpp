@@ -91,4 +91,14 @@ namespace Solace {
         return m;
     }
 
+    Mat4 mat4RotateY(float rad) {
+        Mat4 m = mat4Identity();
+        const float c = std::cos(rad);
+        const float s = std::sin(rad);
+        // column-major: col0 = (c, 0, -s, 0), col2 = (s, 0, c, 0)
+        m[0] = c;  m[8] = s;
+        m[2] = -s;  m[10] = c;
+        return m;
+    }
+
 } // namespace Solace 

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include <array> // Р”РћР‘РђР’Р›Р•РќРћ: РЅСѓР¶РЅРѕ РґР»СЏ std::array
+#include <array>
+#include <nlohmann/json.hpp>
 
 namespace Solace {
 
@@ -27,7 +28,36 @@ namespace Solace {
     struct GraphicsSettings {
         LightingSettings lighting;
         PostProcessSettings postProcess;
-        std::array<float, 3> clearColor = { 0.45f, 0.55f, 0.65f };
+        std::array<float, 4> clearColor = { 0.45f, 0.55f, 0.65f, 1.0f };
+        
+            static bool parse(const nlohmann::json & j, GraphicsSettings & out) {
+            if (j.contains("lighting")) {
+                const auto& l = j["lighting"];
+                l.at("sunDir").get_to(out.lighting.sunDir);
+                l.at("sunColor").get_to(out.lighting.sunColor);
+                l.at("skyColor").get_to(out.lighting.skyColor);
+                l.at("groundColor").get_to(out.lighting.groundColor);
+                l.at("rimColor").get_to(out.lighting.rimColor);
+                out.lighting.toonMidStep = l.value("toonMidStep", out.lighting.toonMidStep);
+                out.lighting.toonShadowStep = l.value("toonShadowStep", out.lighting.toonShadowStep);
+                out.lighting.rimPower = l.value("rimPower", out.lighting.rimPower);
+                
+            }
+            if (j.contains("postProcess")) {
+                const auto& p = j["postProcess"];
+                out.postProcess.targetHeight = p.value("targetHeight", out.postProcess.targetHeight);
+                out.postProcess.paletteBits = p.value("paletteBits", out.postProcess.paletteBits);
+                out.postProcess.ditherAmount = p.value("ditherAmount", out.postProcess.ditherAmount);
+                out.postProcess.bloomStrength = p.value("bloomStrength", out.postProcess.bloomStrength);
+                out.postProcess.bloomThreshold = p.value("bloomThreshold", out.postProcess.bloomThreshold);
+                
+            }
+            if (j.contains("clearColor")) {
+                j.at("clearColor").get_to(out.clearColor);
+                
+            }
+            return true;
+            
+        }
     };
-
 }

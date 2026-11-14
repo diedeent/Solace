@@ -1,5 +1,5 @@
 #include <engine/systems/input_system.hpp>
-#include <engine/core/logger.hpp>
+#include <engine/debug/logger.hpp>
 #include <algorithm>
 #include <iostream>
 
@@ -26,7 +26,7 @@ namespace Solace {
         bindMouseButtonToAction(GameAction::AttackPrimary, SDL_BUTTON_LEFT);
         bindMouseButtonToAction(GameAction::AttackHeavy, SDL_BUTTON_RIGHT);
 
-        Logger::info("InputSystem initialized successfully with default action mappings.");
+        SOLACE_INFO("InputSystem initialized successfully with default action mappings.");
     }
 
     void InputSystem::update() {
